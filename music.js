@@ -136,18 +136,28 @@ async function getVideo(msg, url, title) {
     let video;
     
     url = await getVideoUrl(url);
-    video = ytdl(url, {filter: "audioonly"});
-    video.on('error', (err) => {
-        console.log(err.message)
-        msg.channel.send(responses.getWarning(title, "Não foi possível recuperar este vídeo."));
-        return false
-    });
     if(!title) title = await getVideoTitle(url);
+
+    video = await getVideoRetry(msg, url, title, 1)
     return {
         'video': video,
         'url': url,
         'title': title
     }
+}
+
+async function getVideoRetry(msg, url, title, tries) {
+    let video;
+    video = ytdl(url, {filter: "audioonly"});
+    video.on('error', async () => {
+        if(tries < 4) {
+            console.log( tries + " tries for " + title)
+            await getVideoRetry(msg, url, title, tries++)
+        } else {
+            msg.channel.send(responses.getWarning(title, "Não foi possível recuperar este vídeo."));
+        }
+    });
+    return video;
 }
 
 async function getVideoUrl(oQueTocar) {
