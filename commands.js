@@ -76,7 +76,7 @@ module.exports = async (msg, isInVoiceChannel) => {
             }
             return;
         }
-        found = getCommand(msg.content.slice(1));
+        found = getCommand(msg.content.toLowerCase().slice(1));
         if(!found) {
             msg.channel.send(responses.commandNotFound);
             return;
