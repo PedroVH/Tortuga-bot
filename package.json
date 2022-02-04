@@ -11,11 +11,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@discordjs/opus": "^0.5.3",
-    "discord.js": "^12.5.3",
-    "dotenv": "^10.0.0",
-    "youtube-search-api": "^1.0.10",
-    "ytdl-core": "^4.9.1",
-    "ytpl": "^2.2.3"
+    "@discordjs/opus": "latest",
+    "discord.js": "latest",
+    "dotenv": "latest",
+    "youtube-search-api": "latest",
+    "ytdl-core": "latest",
+    "ytpl": "latest"
   }
 }
