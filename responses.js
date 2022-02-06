@@ -1,106 +1,85 @@
-const constants = require("./constants.json");
-const Discord = require('discord.js');
-const {commandList} = require('./commandList') 
-const message = '#008000';
-const error = '#C70039';
-const warning = error;
+const { MessageEmbed, MessageAttachment } = require('discord.js')
+const messageColor = '#008000'
+const errorColor = '#C70039'
 
-const notInVoiceChannel = getWarning("Você tem que estar conectado em um canal de voz.");
-const commandNotFound = getWarning("Este comando não existe!", "Tente .help para ver a lista de comandos que eu posso fazer.");
+const images = [
+    "https://i.postimg.cc/CM9RFyjy/turt-phone.png",         // profile          // 0
+    "https://i.postimg.cc/QMDNFhMP/turt-curse.png",         // upset            // 1
+    "https://i.postimg.cc/Dys80CgS/turt-sad.png",           // upset            // 2
+    "https://i.postimg.cc/pLHyFDGq/turt-sight.png",         // upset            // 3           
+    "https://i.postimg.cc/CKM1vwV8/turt-think.png",         // think            // 4
+    "https://i.postimg.cc/MZnc2Zfb/turt-romantic.png",      // love             // 5
+    "https://i.postimg.cc/y6pNvMfg/turt-blush.png",         // love             // 6
+    "https://i.postimg.cc/fT0M5Jtp/turt-in-love.png",       // love             // 7
+    "https://i.postimg.cc/2SQrRMxx/turt-kiss.png",          // love             // 8
+    "https://i.postimg.cc/wB9H62fY/turt-kiss3.png",         // love             // 9
+    "https://i.postimg.cc/6q4xHm3n/turt-love.png",          // love             // 10
+    "https://i.postimg.cc/9z35sYRS/turt-love-letter.png",   // love             // 11
+    "https://i.postimg.cc/63mNfX9B/turt-love3.png",         // love             // 12
+    "https://i.postimg.cc/90DC6fx4/turt-horny.png",         // horny            // 13
+    "https://i.postimg.cc/8cxNNV3Z/turt-hot.png",           // horny            // 14
+    "https://i.postimg.cc/d0nFDCpk/turt-laugh.png",         // happy            // 15
+    "https://i.postimg.cc/pTqdN4RS/turt-balloon.png",       // happy            // 16
+    "https://i.postimg.cc/4dLX2c1k/turt-happy.png",         // happy            // 17
+    "https://i.postimg.cc/2yt8yWqF/turt-birthday.png",      // happy            // 18
+    "https://i.postimg.cc/zDQJnnBT/turt-hungry.png",        // happy            // 19
+    "https://i.postimg.cc/t4NJtY8y/turt-sweet.png",         // happy            // 20
+    "https://i.postimg.cc/tgzqPwZg/turt-cowboy.png",        // happy            // 21
+    "https://i.postimg.cc/C11g81pv/turt-little.png",        // happy            // 22
+    "https://i.postimg.cc/NjqBnBRM/turt-king.png",          // happy            // 23
+    "https://i.postimg.cc/XYd7Npnd/turt-cool.png",          // happy            // 24
+    "https://i.postimg.cc/ncsh535d/turt-cat.png",           // happy            // 25
+    "https://i.postimg.cc/85P1b4Mm/turt-dog.png",           // happy            // 26
+    "https://i.postimg.cc/28PSf4NC/turt-cold.png",                              // 27
+]
 
-module.exports = { 
-    getHelp, 
-    getCommandHelp,
-    getMessage,
-    getWarning,
-    getError,
-    notInVoiceChannel,
-    commandNotFound
-};
-
-function getHelp() {
-    prefixos_fmt = '';
-    constants.prefixos.forEach(pre => prefixos_fmt = prefixos_fmt.concat(" " + pre));
-
-    fields = [];
-    for(const command of commandList) {
-        name_fmt = '';
-        command[0].forEach(n => name_fmt = name_fmt.concat(n + "  "));
-        fields.push({
-            name: name_fmt,
-            value: command[1].description
-        })
-    }
-    const embed = new Discord.MessageEmbed()
-        .setTitle("Help")
-        .setColor(message)
-        .setDescription("Para colocar uma música, é só enviar o link ou a pesquisa neste canal!" + 
-                        "\n\nLinks de playlists funcionam também ;)" +
-                        "\n\n_Exemplo de link: https://www.youtube.com/watch?v=dQw4w9WgXcQ_" +
-                        "\n_Exemplo de pesquisa: Never Gonna Give You Up_" +
-                        "\n\n**Prefixos: **" + prefixos_fmt + "\n" +
-                        "\n**Lista de comandos: **\n")
-        .addFields(fields)
-        .setFooter("Se tiver dúvidas, fale com Pedrones#1832");
-
-    return embed;
-}
-
-function getCommandHelp(command) {
-    command = command.trim();
-    commandTitles = [];
-    for(const key of commandList.keys()) {
-        if(key.includes(command)) {
-            commandTitles = key;
-            break;
-        }
-    }
-    let cmd = commandList.get(commandTitles);
-    if(!cmd) {
-        return commandNotFound;
-    }
-    const embed = new Discord.MessageEmbed()
-        .setTitle(command)
-        .setColor(message)
-        .setDescription(cmd.description)
-        .addField("Exemplo", cmd.example)
-        .setFooter("Se tiver dúvidas, fale com Pedrones#1832");
-
-    return embed;
-}
-
-function getMessage(title, description) {
-    const embed = new Discord.MessageEmbed()
-    .setTitle(title)
-    .setColor(message);
-
-    if(description) embed.setDescription(description);
-
-    return embed;
-}
-
-function getError(err, description, comando, footer, title = "Erro!") {
-    if(err && !description) description = err.name + "\n" + err.message;
-    const embed = new Discord.MessageEmbed()
-        .setTitle(title)
-        .setColor(error);
-
-    if(description) embed.setDescription(description);
-
-    if(!footer){
-        if(!comando) comando = "<nome do comando>";
-        footer = "Para mais informações sobre este comando, digite '.help " + comando + "'";
-    }
-    embed.setFooter(footer);
-    return embed;
-}
-
-function getWarning(title, description) {
-    const embed = new Discord.MessageEmbed()
-        .setTitle(title)
-        .setColor(warning);
-
-    if(description) embed.setDescription(description);
+async function sendError (message, title="Erro!", description="", thumbnail=null, hasThumbnail=true) {
+    const embed = new MessageEmbed().setTitle(title)
+    .setDescription(description)
+    .setColor(errorColor)
     
-    return embed;
+    if (hasThumbnail) embed.setThumbnail(thumbnail ? thumbnail : getRandomUpset())
+    
+    message.channel.send({ embeds: [embed] })
+}
+
+async function sendMessage (message, title, description="", thumbnail=null, hasThumbnail=true) {
+    const embed = new MessageEmbed().setTitle(title)
+                                    .setDescription(description)
+                                    .setColor(messageColor)
+
+    if (hasThumbnail) embed.setThumbnail(thumbnail ? thumbnail : getRandomHappy())
+
+    message.channel.send({ embeds: [embed] })
+}
+
+async function sendPlaylist (message, title, playlist) {
+    let description = ''
+    for (let i = 0; i < playlist.length; i++) {
+        const element = playlist[i]
+        description = description.concat(`${i + 1}. ${element.title}\n`)
+    }
+    const embed = new MessageEmbed().setTitle(title)
+                                    .setDescription(description)
+                                    .setColor(messageColor)
+                                    .setThumbnail(images[0])
+
+    message.channel.send({ embeds: [embed] })
+}
+
+const getRandomUpset = () => images[getRandomInteger(1, 5)]
+const getRandomRomantic = () => images[getRandomInteger(6, 13)]
+const getRandomHorny = () => images[getRandomInteger(14, 15)]
+const getRandomHappy = () => images[getRandomInteger(16, 26)]
+const getRandomInteger = (min, max) => Math.floor(Math.random() * (max - min) ) + min
+
+module.exports = {
+    sendError,
+    sendMessage,
+    sendPlaylist,
+    getRandomUpset,
+    getRandomRomantic,
+    getRandomHorny,
+    getRandomHappy,
+    images
 }

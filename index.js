@@ -1,48 +1,30 @@
-const Discord = require('discord.js');
-const client = new Discord.Client();
-const {servers} = require('./servers');
-const commands = require('./commands');
-require('dotenv').config();
-
-client.on('ready', () => {
-    console.log("Bote tá on.");
-    client.user.setPresence({
-        status: 'online',
-        activity: {
-            name: '.help',
-            type: 'LISTENING'
-        }
-    })
+require('dotenv').config()
+const { Client, Intents } = require('discord.js')
+const { handleCommand, loadCommands } = require('./commands')
+const { handleMusic } = require('./music')
+const client = new Client(
+    { 
+        intents: [
+            Intents.FLAGS.GUILDS,
+            Intents.FLAGS.GUILD_MESSAGES,
+            Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
+            Intents.FLAGS.GUILD_VOICE_STATES,
+        ]
 })
 
-client.on('message', async (msg) => {
-    if(!msg.guild) return;
-    if(msg.author.bot) return;
-    if(!msg.content) return;
+const prefix = "."
+const token = process.env.DISCORD_TOKEN
 
-    if(!servers[msg.guild.id]) {
-        servers[msg.guild.id] = {
-            connection: null,
-            dispatcher: null,
-            fila: [],
-            isPlaying: false,
-            isPaused: false
-        }
-    }
-    console.log(msg.guild.name + ": " + msg.content);
+loadCommands()
 
-    commands(msg, msg.member.voice.channel);
+client.on('messageCreate', async message => {
+    if (message.author.bot || !message.content) return
+    let text = message.content.replace(/^\s+|\s+$|\s+(?=\s)/g, '')
+    if (!text) return
+    text.startsWith(prefix) ? await handleCommand(message, text.toLowerCase().replace(prefix, '')) : await handleMusic(message, text)
 })
 
-client.on("voiceStateUpdate", function(oldMember, newMember){
-    if(oldMember.member.user.id == client.user.id) {
-        if(!newMember.channelID){
-            servers[oldMember.guild.id].connection = null;
-            servers[oldMember.guild.id].dispatcher = null;
-            servers[oldMember.guild.id].isPlaying = false;
-            servers[oldMember.guild.id].fila = [];
-        }
-    }
-});
-
-client.login(process.env.DISCORD_TOKEN);
+client.once('ready', () => {
+	console.log('\nBot on!\n')
+})
+client.login(token)

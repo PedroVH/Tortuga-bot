@@ -1,180 +1,216 @@
-const {servers} = require('./servers.js');
-const ytdl = require('ytdl-core');
-const ytsearch = require('youtube-search-api');
-const ytpl = require('ytpl');
-const responses = require('./responses.js');
-const constants = require('./constants.json');
+const { sendError, sendMessage, sendPlaylist } = require('./responses')
+const ytdl = require('ytdl-core-discord')
+const ytsearch = require('youtube-search-api')
+const { joinVoiceChannel, 
+    getVoiceConnection, 
+    VoiceConnectionStatus,
+    entersState,
+    createAudioPlayer,
+    AudioPlayerStatus,
+    createAudioResource } = require('@discordjs/voice')
+// TODO: Adicionar pause, unpause, loop, start e start (n).
 
-module.exports = { 
-    join, 
-    playCommand, 
-    skip, 
-    stop, 
-    pause, 
-    playFromPlaylist, 
-    startCommand,
-    drop
+// Salva as playlists das guildas
+const queues = []
+// Guarda o player que está sendo utilizado em cada guilda
+const guildAudioPlayer = []
+
+
+function makeAudioPlayer(connection, id) {
+    const player = createAudioPlayer()
+    connection.subscribe(player)
+    guildAudioPlayer[id] = player
 }
 
-async function join(msg) {
-    servers[msg.guild.id].connection = await msg.member.voice.channel.join();
-    servers[msg.guild.id].connection.setSpeaking(0);
-}
+async function join(voiceChannel) {
+    if (!validateVoiceChannel(voiceChannel)) return
+    const connection = joinVoiceChannel({
+        channelId: voiceChannel.id,
+        guildId: voiceChannel.guild.id,
+        adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+    })
 
-async function playCommand(msg, oQueTocar) {
-    video = await getVideo(msg, oQueTocar);
-    if(!video) return;
-    
-    servers[msg.guild.id].fila.push(video);
-    await play(msg);
-}
+    connection.on(VoiceConnectionStatus.Ready, () => {
+        console.log(`Connected to ${voiceChannel.guild.name}.`)
+        makeAudioPlayer(connection, voiceChannel.guild.id)
+    })
 
-async function skip(msg) {
-    servers[msg.guild.id].isPlaying = false;
-    servers[msg.guild.id].fila.shift();
-
-    if(servers[msg.guild.id].fila[0]) 
-        await play(msg);
-    else 
-        stop(msg);
-}
-
-function stop(msg) {
-    if(servers[msg.guild.id].connection != null && servers[msg.guild.id].connection.dispatcher != null){
-        servers[msg.guild.id].connection.dispatcher.end();
-        servers[msg.guild.id].fila = [];
-    }
-}
-
-function pause(msg) {
-    if(servers[msg.guild.id].isPaused) {
-        //Resume
-        servers[msg.guild.id].isPaused = false;
-        servers[msg.guild.id].dispatcher.resume();
-        servers[msg.guild.id].dispatcher.pause(true);
-        servers[msg.guild.id].dispatcher.resume();
-    } else {
-        //Pause
-        servers[msg.guild.id].isPaused = true;
-        servers[msg.guild.id].dispatcher.pause();
-    }
-}
-
-async function playFromPlaylist(msg) {
-    playlist_id = await ytpl.getPlaylistID(msg.content);
-    result = await ytpl(playlist_id);
-
-    list = result.items;
-
-    if(msg.content.includes("&list=")){
-        number = msg.content.slice(msg.content.lastIndexOf('&index='));
-        list = list.filter((item) => item.index >= Number(number.replace('&index=', '')));
-    }
-    if(!list.length){
-        msg.channel.send(responses.getError(undefined, "Não foi possível recuperar esta playlist."));
-        return;
-    }    
-    videoTitles = "";
-    once = false;
-    for(const item of list) {
-        videoTitles = videoTitles.concat("\n" + item.title);
-        video = await getVideo(msg, item.url, item.title);
-        if(!video) return;
-        servers[msg.guild.id].fila.push(video);
-        if(!once) {
-            once = true;
-            await play(msg, true, false);
+    connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+        try {
+            await Promise.race([
+                entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+                entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+            ])
+            // Seems to be reconnecting to a new voiceChannel - ignore disconnect
+        } catch (error) {
+            // Seems to be a real disconnect which SHOULDN'T be recovered from
+            connection.destroy()
         }
-    }
-    msg.channel.send(responses.getMessage("Adicionando na playlist: ", videoTitles));
+    })
+
+    connection.on(VoiceConnectionStatus.Destroyed, async (oldState, newState) => {
+        console.log(`Disconnected de ${voiceChannel.guild.name}.`)
+        guildAudioPlayer[voiceChannel.guild.id] = null
+    })
+
+    // Espera ter terminado de conectar antes de sair do método. 
+    await entersState(connection, VoiceConnectionStatus.Ready, 5_000)
+    return connection
 }
 
-async function startCommand(msg) {
-    oQueTocar = msg.content.replace(".start", '').trim();
-    if(!oQueTocar) {
-        throw new Error();
-    }
-    await start(msg, oQueTocar, true);
+async function leave(message) {
+    if (!validateVoiceChannel(message.member.voice.channel)) return
+    const connection = getVoiceConnection(message.guild.id)
+    if (connection) connection.destroy()
 }
 
-async function drop(msg) {
-    await start(msg, constants.drops[Math.floor(Math.random() * constants.drops.length)], false);
-    msg.channel.send(responses.getMessage("MANDANDO O DROP"));
+async function pause(message) {
+    if (!validateVoiceChannel(message.member.voice.channel)) return
+    audioPlayer = guildAudioPlayer[message.guild.id]
+    if (!audioPlayer) throw new Error('Não há um audio player para pausar/despausar.')
+    audioPlayer.state.status == AudioPlayerStatus.Paused ? audioPlayer.unpause() : audioPlayer.pause()
 }
 
-async function play(msg, showPlaying = true, showAdded = true) {
-    await join(msg);
-    const tocando = servers[msg.guild.id].fila[0];
-
-    if(!servers[msg.guild.id].isPlaying){
-        servers[msg.guild.id].isPlaying = true;
-        
-        servers[msg.guild.id].dispatcher = await servers[msg.guild.id].connection.play(tocando.video);
-        if(showPlaying) msg.channel.send(responses.getMessage("🎶 " + tocando.title));
-        servers[msg.guild.id].dispatcher.on('finish', async () => await skip(msg));
-    }
-    else if(showAdded) {
-        last = servers[msg.guild.id].fila.slice(-1)[0];
-        if(last) msg.channel.send(responses.getMessage("🎶 " + last.title, "Adicionado na playlist."));
-    }
+async function stop (message) {
+    if (!validateVoiceChannel(message.member.voice.channel)) return
+    audioPlayer = guildAudioPlayer[message.guild.id]
+    if (!audioPlayer) throw new Error('Não há o que parar.')
+    audioPlayer.stop()
+    delete queues[message.guild.id]
 }
 
-async function start(msg, url, showPlaying) {
-    if(servers[msg.guild.id].isPlaying) servers[msg.guild.id].isPlaying = false;
-    let video = await getVideo(msg, url);
-    if(!video) return;
-    servers[msg.guild.id].fila[0] = video;
-    await play(msg, showPlaying, false);
+async function skip(message) {
+    if (!validateVoiceChannel(message.member.voice.channel)) return
+    const id = message.guild.id
+    if (!queues[id]) return
+    queues[id].shift()
+    await playAudio(message)
 }
 
-async function ytSearch(oQueTocar) {
-    result = await ytsearch.GetListByKeyword(oQueTocar);
-    return 'https://www.youtube.com/watch?v=' + result.items[0].id;
+function addToQueue(message, title, url, alert=true) {
+    const id = message.guild.id
+    if (!queues[id]) queues[id] = []
+    queues[id].push({ title: title, url: url })
+    if (queues[id][1] && alert) sendMessage(message, `🎶 ${title} adicionado na playlist.`, undefined, null, false)
 }
 
-async function getVideo(msg, url, title) {
-    let video;
-    
-    url = await getVideoUrl(url);
-    if(!title) title = await getVideoTitle(url);
+async function playAudio(message) {
+    const id = message.guild.id
+    const voiceChannel = message.member.voice.channel
+    // garante connection
+    let connection = getVoiceConnection(id)
+    if (!connection) connection = await join(voiceChannel)
+    if (!connection) return
 
-    video = await getVideoRetry(msg, url, title, 1)
-    return {
-        'video': video,
-        'url': url,
-        'title': title
-    }
+    // garante audioPlayer
+    let player = guildAudioPlayer[id]
+    if (!player) player = makeAudioPlayer(connection, id)
+    if (!player) return
+
+    // recupera o vídeo e reproduz
+    if (!queues[id]) return
+    const url = queues[id][0]?.url
+    if (!url) return
+    player.play(createAudioResource(await ytdl(url)))
+    sendMessage(message, `🎶 ${queues[id][0]?.title}`, '', null, false)
+
+    player.on('error', error => {
+        console.error(error)
+    })
+    // quando o player parar de streamar, atualiza a fila e executa este método novamente
+    player.on(AudioPlayerStatus.Idle, () => {
+        skip(message)
+    })
 }
 
-async function getVideoRetry(msg, url, title, tries) {
-    let video;
-    video = ytdl(url, {filter: "audioonly"});
-    video.on('error', async () => {
-        if(tries < 4) {
-            console.log( tries + " tries for " + title)
-            await getVideoRetry(msg, url, title, tries++)
+async function handleMusic(message, text) {
+    const voiceChannel = message.member.voice.channel
+    if (!validateVoiceChannel(voiceChannel)) return
+    try {
+        let url = text
+        if (!ytdl.validateURL(url)) {
+            if (url.includes('https://www.youtube.com/playlist?list=')) {
+                handlePlaylist(message, url)
+                return
+            }
+            url = await getUrlByKeyword(text)
+            if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
         } else {
-            msg.channel.send(responses.getWarning(title, "Não foi possível recuperar este vídeo."));
+            if (url.includes('&list=')) {
+                handlePlaylist(message, url, true)
+                return
+            }
         }
-    });
-    return video;
-}
+        const info = await ytdl.getBasicInfo(url)
+        const isNotSafe = info.videoDetails.isPrivate || info.videoDetails.age_restricted
+        // se não for reproduzível manda um feedback para o usuário antes de cancelar a operação
+        if(isNotSafe) { 
+            if (info.videoDetails.isPrivate) await sendError(message, '', 'O vídeo é privado.', 'https://i.postimg.cc/y6pNvMfg/turt-blush.png')
+            if (info.videoDetails.age_restricted) await sendError(message, '', 'Há uma restrição de idade no vídeo.', 'https://i.postimg.cc/C11g81pv/turt-little.png')
+            return
+        }
+        addToQueue(message, info.videoDetails.title, info.videoDetails.video_url)
 
-async function getVideoUrl(oQueTocar) {
-    oQueTocar = oQueTocar.trim();
-    
-    if(!ytdl.validateURL(oQueTocar)){
-        oQueTocar = await ytSearch(oQueTocar);
+        const canPlayNow = (!guildAudioPlayer[message.guild.id]) || (guildAudioPlayer[message.guild.id] && guildAudioPlayer[message.guild.id].state.status == AudioPlayerStatus.Idle)
+        // Toca a música se já não tiver uma tocando
+        if(canPlayNow) await playAudio(message) 
+    } catch (error) {
+        console.log(error)
+        await sendError(message, 'Não foi possível reproduzir.', 'Tente novamente mais tarde.')
     }
-    return oQueTocar;
 }
 
-async function getVideoTitle(oQueTocar) {
-    videoinfo = await getVideoInfo(oQueTocar);
-    return videoInfo.videoDetails.title;
+async function handlePlaylist(message, url, isVideoLink=false) {
+    let itens = []
+    let newVideos = []
+    // No caso de ser o link de uma playlist
+    let playlistId = url.split('list=')[1].split('&index=')[0]
+    let playlist = await ytsearch.GetPlaylistData(playlistId)
+    if (playlist) itens = playlist.items
+    let afterVideoLink = false
+    // adiciona os vídeos
+    for (let i = 0; i < itens.length; i++) {
+        const item = itens[i];
+        if (isVideoLink && !afterVideoLink) {
+            afterVideoLink = item.id == ytdl.getURLVideoID(url)
+            if (!afterVideoLink) continue
+        }
+        video = {
+            title: item.title,
+            url: getUrlById(item.id)
+        }
+        newVideos.push(video)
+        addToQueue(message, video.title, video.url, false)   
+    }
+    // cria a mensagem
+    await sendPlaylist(message, 'Adicionando a playlist: ', newVideos)
+    const canPlayNow = (!guildAudioPlayer[message.guild.id]) || (guildAudioPlayer[message.guild.id] && guildAudioPlayer[message.guild.id].state.status == AudioPlayerStatus.Idle)
+    if(canPlayNow) await playAudio(message) 
 }
 
-async function getVideoInfo(oQueTocar) {
-    videoInfo = await ytdl.getBasicInfo(oQueTocar);
-    return videoInfo;
+async function getUrlByKeyword(keyword) {
+    result = await ytsearch.GetListByKeyword(keyword, false, 1)
+    if (result) return getUrlById(result.items[0]?.id)
+}
+
+function getUrlById(id) {
+    return 'https://www.youtube.com/watch?v=' + id
+}
+
+async function validateVoiceChannel(voiceChannel) {
+    if (!voiceChannel) {
+        await sendError(message, 'Você deve estar conectado em um canal de voz.', '', 'https://i.postimg.cc/CM9RFyjy/turt-phone.png')
+        return false
+    }
+    return true
+}
+
+module.exports = {
+    join,
+    leave,
+    skip,
+    pause,
+    stop,
+    queues,
+    handleMusic
 }
