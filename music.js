@@ -87,11 +87,11 @@ async function skip(message) {
     await playAudio(message)
 }
 
-function addToQueue(message, title, url, alert=true) {
+async function addToQueue(message, title, url, alert=true) {
     const id = message.guild.id
     if (!queues[id]) queues[id] = []
     queues[id].push({ title: title, url: url })
-    if (queues[id][1] && alert) sendMessage(message, `🎶 ${title} adicionado na playlist.`, undefined, null, false)
+    if (queues[id][1] && alert) await sendMessage(message, `🎶 ${title} adicionado na playlist.`, undefined, null, false)
 }
 
 async function playAudio(message) {
@@ -112,14 +112,14 @@ async function playAudio(message) {
     const url = queues[id][0]?.url
     if (!url) return
     player.play(createAudioResource(await ytdl(url)))
-    sendMessage(message, `🎶 ${queues[id][0]?.title}`, '', null, false)
+    await sendMessage(message, `🎶 ${queues[id][0]?.title}`, '', null, false)
 
     player.on('error', error => {
         console.error(error)
     })
     // quando o player parar de streamar, atualiza a fila e executa este método novamente
-    player.on(AudioPlayerStatus.Idle, () => {
-        skip(message)
+    player.on(AudioPlayerStatus.Idle, async () => {
+        await skip(message)
     })
 }
 
@@ -130,14 +130,14 @@ async function handleMusic(message, text) {
         let url = text
         if (!ytdl.validateURL(url)) {
             if (url.includes('https://www.youtube.com/playlist?list=')) {
-                handlePlaylist(message, url)
+                await handlePlaylist(message, url)
                 return
             }
             url = await getUrlByKeyword(text)
             if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
         } else {
             if (url.includes('&list=')) {
-                handlePlaylist(message, url, true)
+                await handlePlaylist(message, url, true)
                 return
             }
         }

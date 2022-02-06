@@ -40,7 +40,7 @@ async function sendError (message, title="Erro!", description="", thumbnail=null
     
     if (hasThumbnail) embed.setThumbnail(thumbnail ? thumbnail : getRandomUpset())
     
-    message.channel.send({ embeds: [embed] })
+    await message.channel.send({ embeds: [embed] })
 }
 
 async function sendMessage (message, title, description="", thumbnail=null, hasThumbnail=true) {
@@ -50,7 +50,7 @@ async function sendMessage (message, title, description="", thumbnail=null, hasT
 
     if (hasThumbnail) embed.setThumbnail(thumbnail ? thumbnail : getRandomHappy())
 
-    message.channel.send({ embeds: [embed] })
+    await message.channel.send({ embeds: [embed] })
 }
 
 async function sendPlaylist (message, title, playlist) {
@@ -64,7 +64,7 @@ async function sendPlaylist (message, title, playlist) {
                                     .setColor(messageColor)
                                     .setThumbnail(images[0])
 
-    message.channel.send({ embeds: [embed] })
+    await message.channel.send({ embeds: [embed] })
 }
 
 const getRandomUpset = () => images[getRandomInteger(1, 5)]
