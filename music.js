@@ -81,12 +81,10 @@ async function stop (message) {
 }
 
 async function skip(message) {
-    console.log("skip enter")
     const id = message.guild.id
     if (!await validateVoiceChannel(message) || (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id))) return
     if (!queues[id]) return
     queues[id].shift()
-    console.log("skip exit")
     await playAudio(message)
 }
 
@@ -106,7 +104,6 @@ async function playAudio(message) {
 
     // garante audioPlayer
     let player = makeAudioPlayer(connection, id)
-    console.log(player)
     if (!player) return
 
     // recupera o vídeo e reproduz
@@ -185,7 +182,6 @@ async function handlePlaylist(message, url, isVideoLink=false) {
     }
     // cria a mensagem
     await sendPlaylist(message, 'Adicionando a playlist: ', newVideos)
-    console.log((!guildAudioPlayer[message.guild.id]))
     const canPlayNow = (!guildAudioPlayer[message.guild.id]) || isAudioPlayerIdle(message.guild.id)
     if(canPlayNow) await playAudio(message) 
 }
