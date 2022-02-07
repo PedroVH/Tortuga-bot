@@ -5,8 +5,8 @@
     "discord.js": "^13.6.0",
     "dotenv": "^16.0.0",
     "libsodium-wrappers": "^0.7.9",
-    "youtube-dl-exec": "^2.0.2",
-    "youtube-search-api": "^1.0.11",
-    "ytdl-core-discord": "github:amishshah/ytdl-core-discord"
+    "node": "^14.19.0",
+    "play-dl": "^1.8.6",
+    "youtube-search-api": "^1.0.11"
   }
 }

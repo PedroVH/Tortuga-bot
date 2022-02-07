@@ -1,5 +1,5 @@
 const { sendError, sendMessage, sendPlaylist } = require('./responses')
-const ytdl = require('ytdl-core-discord')
+const play = require('play-dl')
 const ytsearch = require('youtube-search-api')
 const { joinVoiceChannel, 
     getVoiceConnection, 
@@ -8,7 +8,8 @@ const { joinVoiceChannel,
     createAudioPlayer,
     AudioPlayerStatus,
     createAudioResource } = require('@discordjs/voice')
-// TODO: Adicionar loop, start e start (n).
+// TODO: Adicionar start e start (n).
+//       Substituir o ytsearch pelo play
 
 // Salva as playlists das guildas
 const queues = []
@@ -73,7 +74,7 @@ async function pause(message) {
     if (!await validateVoiceChannel(message)) return
     audioPlayer = guildAudioPlayer[message.guild.id]
     if (!audioPlayer) throw new Error('Não há um audio player para pausar/despausar.')
-    isAudioPlayerPaused(id) ? audioPlayer.unpause() : audioPlayer.pause()
+    isAudioPlayerPaused(message.guild.id) ? audioPlayer.unpause() : audioPlayer.pause()
 }
 
 async function stop (message) {
@@ -124,7 +125,10 @@ async function playAudio(message) {
     if (!queues[id]) return
     const url = queues[id][0]?.url
     if (!url) return
-    player.play(createAudioResource(await ytdl(url)))
+
+    const playStream = await play.stream(url);
+    player.play(createAudioResource(playStream.stream, { inputType: playStream.type }))
+
     if (!flags[id]?.loop) await sendMessage(message, `🎶 ${queues[id][0]?.title}`, '', null, false)
 
     player.on('error', error => {
@@ -143,7 +147,7 @@ async function handleMusic(message, text) {
     if (!await validateVoiceChannel(message)) return
     try {
         let url = text
-        if (!ytdl.validateURL(url)) {
+        if (!validateYoutubeUrl(url)) {
             if (url.includes('https://www.youtube.com/playlist?list=')) {
                 await handlePlaylist(message, url)
                 return
@@ -156,19 +160,18 @@ async function handleMusic(message, text) {
                 return
             }
         }
-        const info = await ytdl.getBasicInfo(url)
-        const isNotSafe = info.videoDetails.isPrivate || info.videoDetails.age_restricted
+        const info = await play.video_info(url)
+        const isNotSafe = info.video_details.private || info.video_details.discretionAdvised
         // se não for reproduzível manda um feedback para o usuário antes de cancelar a operação
-        if(isNotSafe) { 
-            if (info.videoDetails.isPrivate) await sendError(message, '', 'O vídeo é privado.', 'https://i.postimg.cc/y6pNvMfg/turt-blush.png')
-            if (info.videoDetails.age_restricted) await sendError(message, '', 'Há uma restrição de idade no vídeo.', 'https://i.postimg.cc/C11g81pv/turt-little.png')
+        if(isNotSafe) {
+            if (info.video_details.private) await sendError(message, '', 'O vídeo é privado.', 'https://i.postimg.cc/y6pNvMfg/turt-blush.png')
+            if (info.video_details.discretionAdvised) await sendError(message, '', 'Há uma restrição de idade no vídeo.', 'https://i.postimg.cc/C11g81pv/turt-little.png')
             return
         }
-        addToQueue(message, info.videoDetails.title, info.videoDetails.video_url)
-
+        addToQueue(message, info.video_details.title, info.video_details.url)
         const canPlayNow = !guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id)
         // Toca a música se já não tiver uma tocando
-        if(canPlayNow) await playAudio(message) 
+        if(canPlayNow) await playAudio(message)
     } catch (error) {
         console.log(error)
         await sendError(message, 'Não foi possível reproduzir.', 'Tente novamente mais tarde.')
@@ -187,7 +190,7 @@ async function handlePlaylist(message, url, isVideoLink=false) {
     for (let i = 0; i < itens.length; i++) {
         const item = itens[i];
         if (isVideoLink && !afterVideoLink) {
-            afterVideoLink = item.id == ytdl.getURLVideoID(url)
+            afterVideoLink = item.id == play.extractID(url)
             if (!afterVideoLink) continue
         }
         video = {
@@ -214,6 +217,10 @@ async function validateVoiceChannel(message) {
         return false
     }
     return true
+}
+
+async function validateYoutubeUrl(url) {
+    return url.startsWith('https') && play.yt_validate(url) == 'video'
 }
 
 function toggleLoop(id) {

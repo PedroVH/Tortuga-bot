@@ -6,7 +6,7 @@ module.exports = {
         desc: 'O Tortuga se desconecta da chamada de voz.'
     },
     async execute(message, args) {
-        message.react('❌')
+        message.react('✌️')
         await leave(message)
     }
 }
