@@ -12,18 +12,19 @@ const { joinVoiceChannel,
 
 // Salva as playlists das guildas
 const queues = []
-// Guarda o player que está sendo utilizado em cada guilda
+// Guarda o player que está sendo utilizado em cada guilda. Deve ser usado somente para consultar.
 const guildAudioPlayer = []
-
 
 function makeAudioPlayer(connection, id) {
     const player = createAudioPlayer()
     connection.subscribe(player)
     guildAudioPlayer[id] = player
+    return player
 }
 
-async function join(voiceChannel) {
-    if (!validateVoiceChannel(voiceChannel)) return
+async function join(message) {
+    if (!await validateVoiceChannel(message)) return
+    const voiceChannel = message.member.voice.channel
     const connection = joinVoiceChannel({
         channelId: voiceChannel.id,
         guildId: voiceChannel.guild.id,
@@ -31,8 +32,7 @@ async function join(voiceChannel) {
     })
 
     connection.on(VoiceConnectionStatus.Ready, () => {
-        console.log(`Connected to ${voiceChannel.guild.name}.`)
-        makeAudioPlayer(connection, voiceChannel.guild.id)
+        console.log(`${voiceChannel.guild.name}: Connected`)
     })
 
     connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
@@ -49,8 +49,9 @@ async function join(voiceChannel) {
     })
 
     connection.on(VoiceConnectionStatus.Destroyed, async (oldState, newState) => {
-        console.log(`Disconnected de ${voiceChannel.guild.name}.`)
-        guildAudioPlayer[voiceChannel.guild.id] = null
+        console.log(`${voiceChannel.guild.name}: Disconnected`)
+        delete guildAudioPlayer[message.guild.id]
+        delete queues[message.guild.id]
     })
 
     // Espera ter terminado de conectar antes de sair do método. 
@@ -59,31 +60,33 @@ async function join(voiceChannel) {
 }
 
 async function leave(message) {
-    if (!validateVoiceChannel(message.member.voice.channel)) return
+    if (!await validateVoiceChannel(message)) return
     const connection = getVoiceConnection(message.guild.id)
     if (connection) connection.destroy()
 }
 
 async function pause(message) {
-    if (!validateVoiceChannel(message.member.voice.channel)) return
+    if (!await validateVoiceChannel(message)) return
     audioPlayer = guildAudioPlayer[message.guild.id]
     if (!audioPlayer) throw new Error('Não há um audio player para pausar/despausar.')
-    audioPlayer.state.status == AudioPlayerStatus.Paused ? audioPlayer.unpause() : audioPlayer.pause()
+    isAudioPlayerPaused(id) ? audioPlayer.unpause() : audioPlayer.pause()
 }
 
 async function stop (message) {
-    if (!validateVoiceChannel(message.member.voice.channel)) return
-    audioPlayer = guildAudioPlayer[message.guild.id]
-    if (!audioPlayer) throw new Error('Não há o que parar.')
-    audioPlayer.stop()
+    if (!await validateVoiceChannel(message)) return
+    let audioPlayer = guildAudioPlayer[message.guild.id]
+    if (audioPLayer) audioPlayer.stop()
+    delete guildAudioPlayer[message.guild.id]
     delete queues[message.guild.id]
 }
 
 async function skip(message) {
-    if (!validateVoiceChannel(message.member.voice.channel)) return
+    console.log("skip enter")
     const id = message.guild.id
+    if (!await validateVoiceChannel(message) || (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id))) return
     if (!queues[id]) return
     queues[id].shift()
+    console.log("skip exit")
     await playAudio(message)
 }
 
@@ -96,15 +99,14 @@ async function addToQueue(message, title, url, alert=true) {
 
 async function playAudio(message) {
     const id = message.guild.id
-    const voiceChannel = message.member.voice.channel
     // garante connection
     let connection = getVoiceConnection(id)
-    if (!connection) connection = await join(voiceChannel)
+    if (!connection) connection = await join(message)
     if (!connection) return
 
     // garante audioPlayer
-    let player = guildAudioPlayer[id]
-    if (!player) player = makeAudioPlayer(connection, id)
+    let player = makeAudioPlayer(connection, id)
+    console.log(player)
     if (!player) return
 
     // recupera o vídeo e reproduz
@@ -124,8 +126,7 @@ async function playAudio(message) {
 }
 
 async function handleMusic(message, text) {
-    const voiceChannel = message.member.voice.channel
-    if (!validateVoiceChannel(voiceChannel)) return
+    if (!await validateVoiceChannel(message)) return
     try {
         let url = text
         if (!ytdl.validateURL(url)) {
@@ -151,7 +152,7 @@ async function handleMusic(message, text) {
         }
         addToQueue(message, info.videoDetails.title, info.videoDetails.video_url)
 
-        const canPlayNow = (!guildAudioPlayer[message.guild.id]) || (guildAudioPlayer[message.guild.id] && guildAudioPlayer[message.guild.id].state.status == AudioPlayerStatus.Idle)
+        const canPlayNow = !guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id)
         // Toca a música se já não tiver uma tocando
         if(canPlayNow) await playAudio(message) 
     } catch (error) {
@@ -184,7 +185,8 @@ async function handlePlaylist(message, url, isVideoLink=false) {
     }
     // cria a mensagem
     await sendPlaylist(message, 'Adicionando a playlist: ', newVideos)
-    const canPlayNow = (!guildAudioPlayer[message.guild.id]) || (guildAudioPlayer[message.guild.id] && guildAudioPlayer[message.guild.id].state.status == AudioPlayerStatus.Idle)
+    console.log((!guildAudioPlayer[message.guild.id]))
+    const canPlayNow = (!guildAudioPlayer[message.guild.id]) || isAudioPlayerIdle(message.guild.id)
     if(canPlayNow) await playAudio(message) 
 }
 
@@ -193,17 +195,21 @@ async function getUrlByKeyword(keyword) {
     if (result) return getUrlById(result.items[0]?.id)
 }
 
-function getUrlById(id) {
-    return 'https://www.youtube.com/watch?v=' + id
-}
-
-async function validateVoiceChannel(voiceChannel) {
-    if (!voiceChannel) {
+async function validateVoiceChannel(message) {
+    if (!message.member.voice.channel) {
         await sendError(message, 'Você deve estar conectado em um canal de voz.', '', 'https://i.postimg.cc/CM9RFyjy/turt-phone.png')
         return false
     }
     return true
 }
+
+const getUrlById = (id) =>'https://www.youtube.com/watch?v=' + id
+
+const isAudioPlayerIdle = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Idle
+
+const isAudioPlayerBuffering = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Buffering
+
+const isAudioPlayerPaused = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Paused
 
 module.exports = {
     join,

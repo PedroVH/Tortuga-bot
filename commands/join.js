@@ -7,6 +7,6 @@ module.exports = {
     },
     async execute(message, args) {
         message.react('✨')
-        await join(message.member.voice.channel)
+        await join(message)
     }
 }
