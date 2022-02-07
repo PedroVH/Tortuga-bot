@@ -8,12 +8,16 @@ const { joinVoiceChannel,
     createAudioPlayer,
     AudioPlayerStatus,
     createAudioResource } = require('@discordjs/voice')
-// TODO: Adicionar pause, unpause, loop, start e start (n).
+// TODO: Adicionar loop, start e start (n).
 
 // Salva as playlists das guildas
 const queues = []
-// Guarda o player que está sendo utilizado em cada guilda. Deve ser usado somente para consultar.
+// Guarda o player que está sendo utilizado em cada guilda. 
+// Deve ser usado somente para consultar, e operações como pausar/despausar.
 const guildAudioPlayer = []
+// Uma array de flags. O index é o id da guilda.
+// estrutura atual: { loop: boolean }
+const flags = []
 
 function makeAudioPlayer(connection, id) {
     const player = createAudioPlayer()
@@ -85,7 +89,17 @@ async function skip(message) {
     if (!await validateVoiceChannel(message) || (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id))) return
     if (!queues[id]) return
     queues[id].shift()
+    if (flags[id]?.loop) toggleLoop(id)
     await playAudio(message)
+}
+
+async function loop(message) {
+    if (!await validateVoiceChannel(message)) return
+    if (!isAudioPlayerPlaying(message.guild.id)) {
+        await sendError(message, undefined, "Não há uma música tocando agora.")
+        return
+    }
+    toggleLoop(message.guild.id)
 }
 
 async function addToQueue(message, title, url, alert=true) {
@@ -111,14 +125,17 @@ async function playAudio(message) {
     const url = queues[id][0]?.url
     if (!url) return
     player.play(createAudioResource(await ytdl(url)))
-    await sendMessage(message, `🎶 ${queues[id][0]?.title}`, '', null, false)
+    if (!flags[id]?.loop) await sendMessage(message, `🎶 ${queues[id][0]?.title}`, '', null, false)
 
     player.on('error', error => {
         console.error(error)
     })
-    // quando o player parar de streamar, atualiza a fila e executa este método novamente
+    // quando o player parar de streamar, atualiza a fila e executa este método novamente (exceção o loop)
     player.on(AudioPlayerStatus.Idle, async () => {
-        await skip(message)
+        if (flags[id]?.loop)
+            await playAudio(message)
+        else 
+            await skip(message)
     })
 }
 
@@ -199,13 +216,19 @@ async function validateVoiceChannel(message) {
     return true
 }
 
+function toggleLoop(id) {
+    let player = guildAudioPlayer[id]
+    if (!player) return
+    if (!flags[id]) flags[id] = { loop: false }
+    flags[id].loop = !flags[id].loop
+}
+
 const getUrlById = (id) =>'https://www.youtube.com/watch?v=' + id
 
 const isAudioPlayerIdle = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Idle
-
 const isAudioPlayerBuffering = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Buffering
-
 const isAudioPlayerPaused = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Paused
+const isAudioPlayerPlaying = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Playing
 
 module.exports = {
     join,
@@ -214,5 +237,6 @@ module.exports = {
     pause,
     stop,
     queues,
+    loop,
     handleMusic
 }
