@@ -1,5 +1,5 @@
 const { sendError, sendMessage, sendPlaylist } = require('./responses')
-const play = require('play-dl')
+const play = require('play-dl');
 const ytsearch = require('youtube-search-api')
 const { joinVoiceChannel, 
     getVoiceConnection, 
@@ -147,20 +147,21 @@ async function handleMusic(message, text) {
     if (!await validateVoiceChannel(message)) return
     try {
         let url = text
-        if (!validateYoutubeUrl(url)) {
+        if (validateYoutubeUrl(url)) {
             if (url.includes('https://www.youtube.com/playlist?list=')) {
                 await handlePlaylist(message, url)
                 return
             }
-            url = await getUrlByKeyword(text)
-            if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
         } else {
             if (url.includes('&list=')) {
                 await handlePlaylist(message, url, true)
                 return
             }
+            url = await getUrlByKeyword(text)
+            if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
         }
-        const info = await play.video_info(url)
+        console.log(url)
+        const info = await play.video_basic_info(url)
         const isNotSafe = info.video_details.private || info.video_details.discretionAdvised
         // se não for reproduzível manda um feedback para o usuário antes de cancelar a operação
         if(isNotSafe) {
@@ -174,7 +175,7 @@ async function handleMusic(message, text) {
         if(canPlayNow) await playAudio(message)
     } catch (error) {
         console.log(error)
-        await sendError(message, 'Não foi possível reproduzir.', 'Tente novamente mais tarde.')
+        await sendError(message, 'Não foi possível reproduzir, tente novamente mais tarde.', error.message)
     }
 }
 
@@ -190,7 +191,7 @@ async function handlePlaylist(message, url, isVideoLink=false) {
     for (let i = 0; i < itens.length; i++) {
         const item = itens[i];
         if (isVideoLink && !afterVideoLink) {
-            afterVideoLink = item.id == play.extractID(url)
+            afterVideoLink = url.includes(item.id)
             if (!afterVideoLink) continue
         }
         video = {
@@ -203,6 +204,7 @@ async function handlePlaylist(message, url, isVideoLink=false) {
     // cria a mensagem
     await sendPlaylist(message, 'Adicionando a playlist: ', newVideos)
     const canPlayNow = (!guildAudioPlayer[message.guild.id]) || isAudioPlayerIdle(message.guild.id)
+    // se o bot estiver livre, toca a música
     if(canPlayNow) await playAudio(message) 
 }
 
@@ -219,7 +221,7 @@ async function validateVoiceChannel(message) {
     return true
 }
 
-async function validateYoutubeUrl(url) {
+function validateYoutubeUrl(url) {
     return url.startsWith('https') && play.yt_validate(url) == 'video'
 }
 
