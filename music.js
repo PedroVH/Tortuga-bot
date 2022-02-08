@@ -80,7 +80,7 @@ async function pause(message) {
 async function stop (message) {
     if (!await validateVoiceChannel(message)) return
     let audioPlayer = guildAudioPlayer[message.guild.id]
-    if (audioPLayer) audioPlayer.stop()
+    if (audioPlayer) audioPlayer.stop()
     delete guildAudioPlayer[message.guild.id]
     delete queues[message.guild.id]
 }
@@ -147,12 +147,11 @@ async function handleMusic(message, text) {
     if (!await validateVoiceChannel(message)) return
     try {
         let url = text
-        if (validateYoutubeUrl(url)) {
+        if (!validateYoutubeUrl(url)) {
             if (url.includes('https://www.youtube.com/playlist?list=')) {
                 await handlePlaylist(message, url)
                 return
             }
-        } else {
             if (url.includes('&list=')) {
                 await handlePlaylist(message, url, true)
                 return
@@ -162,13 +161,6 @@ async function handleMusic(message, text) {
         }
         console.log(url)
         const info = await play.video_basic_info(url)
-        const isNotSafe = info.video_details.private || info.video_details.discretionAdvised
-        // se não for reproduzível manda um feedback para o usuário antes de cancelar a operação
-        if(isNotSafe) {
-            if (info.video_details.private) await sendError(message, '', 'O vídeo é privado.', 'https://i.postimg.cc/y6pNvMfg/turt-blush.png')
-            if (info.video_details.discretionAdvised) await sendError(message, '', 'Há uma restrição de idade no vídeo.', 'https://i.postimg.cc/C11g81pv/turt-little.png')
-            return
-        }
         addToQueue(message, info.video_details.title, info.video_details.url)
         const canPlayNow = !guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id)
         // Toca a música se já não tiver uma tocando
