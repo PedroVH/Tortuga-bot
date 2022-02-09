@@ -126,7 +126,7 @@ async function playAudio(message) {
     const url = queues[id][0]?.url
     if (!url) return
 
-    const playStream = await play.stream(url).catch(err => {
+    const playStream = await play.stream(url).catch(async err => {
         console.log(err)
         await skip(message)
     });
