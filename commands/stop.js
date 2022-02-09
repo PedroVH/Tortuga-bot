@@ -6,7 +6,6 @@ module.exports = {
         desc: 'Zera a playlist e para a música.'
     },
     async execute(message, args) {
-        await stop(message)
-        message.react('⏹️')
+        await stop(message).then(message.react('⏹️'))
     }
 }

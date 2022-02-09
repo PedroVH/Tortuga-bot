@@ -6,7 +6,6 @@ module.exports = {
         desc: 'O Tortuga se conecta na chamada de voz.'
     },
     async execute(message, args) {
-        message.react('✨')
-        await join(message)
+        await join(message).then(message.react('✨'))
     }
 }

@@ -6,7 +6,6 @@ module.exports = {
         desc: 'Bota a música atual em loop.'
     },
     async execute(message, args) {
-        await loop(message)
-        message.react('🔁')
+        await loop(message).then(message.react('🔁'))
     }
 }

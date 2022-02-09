@@ -1,6 +1,6 @@
 require('dotenv').config()
 const { Client, Intents } = require('discord.js')
-const { handleCommand, loadCommands } = require('./commands')
+const { handleCommand, loadCommands } = require('./command-controller')
 const { handleMusic } = require('./music')
 const client = new Client(
     { 
