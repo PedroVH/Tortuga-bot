@@ -70,7 +70,14 @@ async function sendPlaylist (message, title, playlist) {
 
 async function sendHelp (message) {
     let title = 'Help!'
-    let description = ''
+    let description = 
+    'Para tocar uma música, simplesmente cole o **link** do Youtube aqui.\n'+
+    '_Ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ _\n\n'+
+    'Você também pode **pesquisar** pela música!\n'+
+    '_Ex: Never Gonna Give You Up_\n\n'+
+    'Também é possível adicionar **playlists** do Youtube, através de um link ou de um vídeo da playlist.\n\n'+
+    '_Obs.: Os vídeos/playlists não podem ser privados ou ter restrição de idade._\n\n'+
+    '**Comandos:**\n'
     const embed = new MessageEmbed().setTitle(title)
 
     for (const key in commands) {
