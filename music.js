@@ -126,7 +126,10 @@ async function playAudio(message) {
     const url = queues[id][0]?.url
     if (!url) return
 
-    const playStream = await play.stream(url);
+    const playStream = await play.stream(url).catch(err => {
+        console.log(err)
+        await skip(message)
+    });
     player.play(createAudioResource(playStream.stream, { inputType: playStream.type }))
 
     if (!flags[id]?.loop) await sendMessage(message, `🎶 ${queues[id][0]?.title}`, '', null, false)
