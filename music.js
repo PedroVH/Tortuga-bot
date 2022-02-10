@@ -35,7 +35,7 @@ async function join(message) {
         guildId: voiceChannel.guild.id,
         adapterCreator: voiceChannel.guild.voiceAdapterCreator,
     })
-
+    
     connection.on(VoiceConnectionStatus.Ready, () => {
         console.log(`${voiceChannel.guild.name}: Connected`)
     })
@@ -55,8 +55,8 @@ async function join(message) {
 
     connection.on(VoiceConnectionStatus.Destroyed, async (oldState, newState) => {
         console.log(`${voiceChannel.guild.name}: Disconnected`)
-        delete guildAudioPlayer[message.guild.id]
-        delete queues[message.guild.id]
+        guildAudioPlayer[message.guild.id] = null
+        queues[message.guild.id] = null
     })
 
     // Espera ter terminado de conectar antes de sair do método. 
@@ -81,8 +81,8 @@ async function stop (message) {
     if (!await validateVoiceChannel(message)) return
     let audioPlayer = guildAudioPlayer[message.guild.id]
     if (audioPlayer) audioPlayer.stop()
-    delete guildAudioPlayer[message.guild.id]
-    delete queues[message.guild.id]
+    guildAudioPlayer[message.guild.id] = null
+    queues[message.guild.id] = null
 }
 
 async function skip(message) {
