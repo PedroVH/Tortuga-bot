@@ -110,6 +110,25 @@ async function addToQueue(message, title, url, alert=true) {
     if (queues[id][1] && alert) await sendMessage(message, `🎶 ${title} adicionado na playlist.`, undefined, null, false)
 }
 
+async function start(message, url=undefined) {
+    const id = message.guild.id
+    if (!queues[id]) queues[id] = []
+    if (!url) url = message.content
+    if (!validateYoutubeUrl(url)) {
+        url = await getUrlByKeyword(text)
+        if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
+    }
+    const info = await play.video_basic_info(url)
+    queues[id][0]({ title: info.video_details.title, url: info.video_details.url })
+    try {
+        await playAudio(message)
+    } 
+    catch {
+        console.log(error)
+        await sendError(message, 'Não foi possível reproduzir, tente novamente mais tarde.', error.message)
+    }
+}
+
 async function playAudio(message) {
     const id = message.guild.id
     // garante connection
@@ -242,5 +261,6 @@ module.exports = {
     stop,
     queues,
     loop,
-    handleMusic
+    start,
+    handleMusic,
 }
