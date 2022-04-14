@@ -119,7 +119,7 @@ async function start(message, url=undefined) {
         if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
     }
     const info = await play.video_basic_info(url)
-    queues[id][0]({ title: info.video_details.title, url: info.video_details.url })
+    queues[id][0] = { title: info.video_details.title, url: info.video_details.url }
     try {
         await playAudio(message)
     } 
