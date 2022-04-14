@@ -115,7 +115,7 @@ async function start(message, url=undefined) {
     if (!queues[id]) queues[id] = []
     if (!url) url = message.content
     if (!validateYoutubeUrl(url)) {
-        url = await getUrlByKeyword(text)
+        url = await getUrlByKeyword(url)
         if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
     }
     const info = await play.video_basic_info(url)
