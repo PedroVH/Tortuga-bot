@@ -21,7 +21,7 @@ client.on('messageCreate', async message => {
     if (message.author.bot || !message.content) return
     let text = message.content.replace(/^\s+|\s+$|\s+(?=\s)/g, '')
     if (!text) return
-    console.log(`${message.guild.name}: ${text}`)
+    console.log(`[${message.guild.name}] ${message.author.username}: ${text}`)
     text.startsWith(prefix) ? await handleCommand(message, text.toLowerCase().replace(prefix, '')) : await handleMusic(message, text)
 })
 
