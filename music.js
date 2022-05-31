@@ -124,7 +124,7 @@ async function start(message, url=undefined) {
         await playAudio(message)
     } 
     catch (error) {
-        console.log(error)
+        console.log(error.message)
         await sendError(message, 'Não foi possível reproduzir, tente novamente mais tarde.', error.message)
     }
 }
