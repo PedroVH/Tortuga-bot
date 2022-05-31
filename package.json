@@ -6,7 +6,7 @@
     "dotenv": "^16.0.0",
     "libsodium-wrappers": "^0.7.9",
     "node": "^14.19.0",
-    "play-dl": "^1.8.6",
+    "play-dl": "^1.9.5",
     "youtube-search-api": "^1.0.11"
   }
 }
