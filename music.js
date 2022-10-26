@@ -40,7 +40,7 @@ async function join(message) {
         console.log(`${voiceChannel.guild.name}: Connected`)
     })
 
-    connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+    connection.on(VoiceConnectionStatus.Disconnected, async () => {
         try {
             await Promise.race([
                 entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
@@ -53,7 +53,7 @@ async function join(message) {
         }
     })
 
-    connection.on(VoiceConnectionStatus.Destroyed, async (oldState, newState) => {
+    connection.on(VoiceConnectionStatus.Destroyed, async () => {
         console.log(`${voiceChannel.guild.name}: Disconnected`)
         guildAudioPlayer[message.guild.id] = null
         queues[message.guild.id] = null
@@ -72,7 +72,7 @@ async function leave(message) {
 
 async function pause(message) {
     if (!await validateVoiceChannel(message)) return
-    audioPlayer = guildAudioPlayer[message.guild.id]
+    let audioPlayer = guildAudioPlayer[message.guild.id]
     if (!audioPlayer) throw new Error('Não há um audio player para pausar/despausar.')
     isAudioPlayerPaused(message.guild.id) ? audioPlayer.unpause() : audioPlayer.pause()
 }
@@ -116,7 +116,7 @@ async function start(message, url=undefined) {
     if (!url) url = message.content
     if (!validateYoutubeUrl(url)) {
         url = await getUrlByKeyword(url)
-        if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
+        if (!url) await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
     }
     const info = await play.video_basic_info(url)
     queues[id][0] = { title: info.video_details.title, url: info.video_details.url }
@@ -179,11 +179,11 @@ async function handleMusic(message, text) {
                 return
             }
             url = await getUrlByKeyword(text)
-            if (!url) sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
+            if (!url) await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
         }
         console.log(url)
         const info = await play.video_basic_info(url)
-        addToQueue(message, info.video_details.title, info.video_details.url)
+        await addToQueue(message, info.video_details.title, info.video_details.url)
         const canPlayNow = !guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id)
         // Toca a música se já não tiver uma tocando
         if(canPlayNow) await playAudio(message)
@@ -202,6 +202,7 @@ async function handlePlaylist(message, url, isVideoLink=false) {
     if (playlist) itens = playlist.items
     let afterVideoLink = false
     // adiciona os vídeos
+    let video;
     for (let i = 0; i < itens.length; i++) {
         const item = itens[i];
         if (isVideoLink && !afterVideoLink) {
@@ -213,7 +214,7 @@ async function handlePlaylist(message, url, isVideoLink=false) {
             url: getUrlById(item.id)
         }
         newVideos.push(video)
-        addToQueue(message, video.title, video.url, false)   
+        await addToQueue(message, video.title, video.url, false)
     }
     // cria a mensagem
     await sendPlaylist(message, 'Adicionando a playlist: ', newVideos)
@@ -223,7 +224,7 @@ async function handlePlaylist(message, url, isVideoLink=false) {
 }
 
 async function getUrlByKeyword(keyword) {
-    result = await ytsearch.GetListByKeyword(keyword, false, 1)
+    let result = await ytsearch.GetListByKeyword(keyword, false, 1)
     if (result) return getUrlById(result.items[0]?.id)
 }
 
@@ -236,7 +237,7 @@ async function validateVoiceChannel(message) {
 }
 
 function validateYoutubeUrl(url) {
-    return url.startsWith('https') && play.yt_validate(url) == 'video'
+    return url.startsWith('https') && play.yt_validate(url) === 'video'
 }
 
 function toggleLoop(id) {
@@ -248,10 +249,10 @@ function toggleLoop(id) {
 
 const getUrlById = (id) =>'https://www.youtube.com/watch?v=' + id
 
-const isAudioPlayerIdle = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Idle
-const isAudioPlayerBuffering = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Buffering
-const isAudioPlayerPaused = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Paused
-const isAudioPlayerPlaying = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status == AudioPlayerStatus.Playing
+const isAudioPlayerIdle = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Idle
+const isAudioPlayerBuffering = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Buffering
+const isAudioPlayerPaused = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Paused
+const isAudioPlayerPlaying = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Playing
 
 module.exports = {
     join,
