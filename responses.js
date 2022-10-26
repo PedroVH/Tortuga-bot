@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js')
+const { EmbedBuilder } = require('discord.js')
 const { commands } = require('./commands')
 const messageColor = '#008000'
 const errorColor = '#C70039'
@@ -34,33 +34,33 @@ const images = [
     'https://i.postimg.cc/28PSf4NC/turt-cold.png',                              // 27
 ]
 
-async function sendError (message, title='Erro!', description='', thumbnail=null, hasThumbnail=true) {
-    const embed = new MessageEmbed().setTitle(title)
-                                    .setDescription(description)
+async function sendError (message, title='Erro!', description=null, thumbnail=null, hasThumbnail=true) {
+    const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(errorColor)
 
+    if(description) embed.setDescription(description)
     if (hasThumbnail) embed.setThumbnail(thumbnail ? thumbnail : getRandomUpset())
     
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendMessage (message, title, description='', thumbnail=null, hasThumbnail=true) {
-    const embed = new MessageEmbed().setTitle(title)
-                                    .setDescription(description)
+async function sendMessage (message, title, description=null, thumbnail=null, hasThumbnail=true) {
+    const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(messageColor)
 
+    if(description) embed.setDescription(description)
     if (hasThumbnail) embed.setThumbnail(thumbnail ? thumbnail : getRandomHappy())
 
     await message.channel.send({ embeds: [embed] })
 }
 
 async function sendPlaylist (message, title, playlist) {
-    let description = ''
+    let description = null
     for (let i = 0; i < playlist.length; i++) {
         const element = playlist[i]
         description = description.concat(`${i + 1}. ${element.title}\n`)
     }
-    const embed = new MessageEmbed().setTitle(title)
+    const embed = new EmbedBuilder().setTitle(title)
                                     .setDescription(description)
                                     .setColor(messageColor)
                                     .setThumbnail(images[0])
@@ -78,18 +78,17 @@ async function sendHelp (message) {
     'Também é possível adicionar **playlists** do Youtube, através de um link ou de um vídeo da playlist.\n\n'+
     '_Obs.: Os vídeos/playlists não podem ser privados ou ter restrição de idade._\n\n'+
     '**Comandos:**\n'
-    const embed = new MessageEmbed().setTitle(title)
+    const embed = new EmbedBuilder().setTitle(title)
 
     for (const key in commands) {
         if (Object.hasOwnProperty.call(commands, key)) {
             const element = commands[key];
-            embed.addField(element.data.name, element.data.desc, true)
+            embed.addFields({ name: element.data.name, value: element.data.desc })
         }
     }
     embed.setDescription(description)
          .setColor(messageColor)
-         .setThumbnail(getRandomHappy())
-         .setFooter({ text: "Feito por: Pedrones#1832" })
+         .setThumbnail(getRandomHappy());
 
     await message.channel.send({ embeds: [embed] })
 }

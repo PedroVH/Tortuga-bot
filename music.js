@@ -1,5 +1,5 @@
 const { sendError, sendMessage, sendPlaylist } = require('./responses')
-const play = require('play-dl');
+const play = require('play-dl2'); // temporariamente (fixes https://github.com/play-dl/play-dl/issues/321)
 const ytsearch = require('youtube-search-api')
 const { joinVoiceChannel, 
     getVoiceConnection, 
