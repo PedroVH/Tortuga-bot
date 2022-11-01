@@ -85,11 +85,17 @@ async function stop (message) {
     queues[message.guild.id] = null
 }
 
-async function skip(message) {
+async function skip(message, to) {
     const id = message.guild.id
     if (!await validateVoiceChannel(message) || (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id))) return
     if (!queues[id]) return
-    queues[id].shift()
+
+    if(to) {
+        queues[id].splice(0, to - 1)
+    }
+    else {
+        queues[id].shift()
+    }
     if (flags[id]?.loop) toggleLoop(id)
     await playAudio(message)
 }

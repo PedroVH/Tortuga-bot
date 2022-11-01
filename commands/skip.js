@@ -6,6 +6,6 @@ module.exports = {
         desc: 'Pula para o próximo item da playlist.'
     },
     async execute(message, args) {
-        await skip(message).then(message.react('⏭️'))
+        await skip(message, args[0]).then(message.react('⏭️'))
     }
 }
