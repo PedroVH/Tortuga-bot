@@ -1,5 +1,5 @@
-const { sendError, sendMessage, sendPlaylist } = require('./responses')
-const play = require('play-dl2'); // temporariamente (fixes https://github.com/play-dl/play-dl/issues/321)
+const { sendError, sendMessage, sendPlaylist} = require('./responses')
+const play = require('play-dl');
 const ytsearch = require('youtube-search-api')
 const { joinVoiceChannel, 
     getVoiceConnection, 
@@ -37,7 +37,7 @@ async function join(message) {
     })
     
     connection.on(VoiceConnectionStatus.Ready, () => {
-        console.log(`${voiceChannel.guild.name}: Connected`)
+        console.log(`[${voiceChannel.guild.name}] Connected`)
     })
 
     connection.on(VoiceConnectionStatus.Disconnected, async () => {
@@ -54,7 +54,7 @@ async function join(message) {
     })
 
     connection.on(VoiceConnectionStatus.Destroyed, async () => {
-        console.log(`${voiceChannel.guild.name}: Disconnected`)
+        console.log(`[${voiceChannel.guild.name}] Disconnected`)
         guildAudioPlayer[message.guild.id] = null
         queues[message.guild.id] = null
     })
@@ -88,7 +88,7 @@ async function stop (message) {
 async function skip(message, to) {
     const id = message.guild.id
     if (!await validateVoiceChannel(message) || (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id))) return
-    if (!queues[id]) return
+    if (!await validateHasQueue(message)) return
 
     if(to) {
         queues[id].splice(0, to - 1)
@@ -98,6 +98,18 @@ async function skip(message, to) {
     }
     if (flags[id]?.loop) toggleLoop(id)
     await playAudio(message)
+}
+
+async function remove(message, index, count='1') {
+    const id = message.guild.id
+    if (!await validateVoiceChannel(message)) return
+    if (!await validateHasQueue(message)) return
+
+    if(queues[id].length === 0)
+        return await sendError(message, "A playlist está vazia!")
+
+    let removed = queues[id].splice(index, count)
+    await sendPlaylist(message, `❎ Músicas removidas: `, removed, ++index)
 }
 
 async function loop(message) {
@@ -130,7 +142,7 @@ async function start(message, url=undefined) {
         await playAudio(message)
     } 
     catch (error) {
-        console.log(error.message)
+        console.error(error)
         await sendError(message, 'Não foi possível reproduzir, tente novamente mais tarde.', error.message)
     }
 }
@@ -147,12 +159,12 @@ async function playAudio(message) {
     if (!player) return
 
     // recupera o vídeo e reproduz
-    if (!queues[id]) return
+    if (!await validateHasQueue(message)) return
     const url = queues[id][0]?.url
     if (!url) return
 
-    const playStream = await play.stream(url).catch(async err => {
-        console.log(err)
+    const playStream = await play.stream(url).catch(async error => {
+        console.error(error)
         await skip(message)
     });
     player.play(createAudioResource(playStream.stream, { inputType: playStream.type }))
@@ -187,14 +199,13 @@ async function handleMusic(message, text) {
             url = await getUrlByKeyword(text)
             if (!url) await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
         }
-        console.log(url)
         const info = await play.video_basic_info(url)
         await addToQueue(message, info.video_details.title, info.video_details.url)
         const canPlayNow = !guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id)
         // Toca a música se já não tiver uma tocando
         if(canPlayNow) await playAudio(message)
     } catch (error) {
-        console.log(error)
+        console.error(error)
         await sendError(message, 'Não foi possível reproduzir, tente novamente mais tarde.', error.message)
     }
 }
@@ -242,6 +253,14 @@ async function validateVoiceChannel(message) {
     return true
 }
 
+async function validateHasQueue(message) {
+    if (!queues[message.guild.id]) {
+        await sendError(message, "Ainda não foi criada uma playlist.")
+        return false
+    }
+    return true
+}
+
 function validateYoutubeUrl(url) {
     return url.startsWith('https') && play.yt_validate(url) === 'video'
 }
@@ -264,6 +283,7 @@ module.exports = {
     join,
     leave,
     skip,
+    remove,
     pause,
     stop,
     queues,

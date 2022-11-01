@@ -3,7 +3,7 @@ const { commands } = require('./commands')
 const fs = require('fs')
 
 function loadCommands() {
-    console.log("Carregando os comandos...")
+    console.log("Loading commands...")
     const files = fs.readdirSync('./commands').filter(file => file.endsWith('.js'))
 
     for (const file of files) {

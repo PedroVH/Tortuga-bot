@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js')
 const { commands } = require('./commands')
 const messageColor = '#008000'
+const warningColor = '#DBF227'
 const errorColor = '#C70039'
 
 const images = [
@@ -44,6 +45,16 @@ async function sendError (message, title='Erro!', description=null, thumbnail=nu
     await message.channel.send({ embeds: [embed] })
 }
 
+async function sendWarning (message, title='Atenção!', description=null, thumbnail=null, hasThumbnail=true) {
+    const embed = new EmbedBuilder().setTitle(title)
+                                    .setColor(warningColor)
+
+    if(description) embed.setDescription(description)
+    if (hasThumbnail) embed.setThumbnail(thumbnail ? thumbnail : getRandomUpset())
+
+    await message.channel.send({ embeds: [embed] })
+}
+
 async function sendMessage (message, title, description=null, thumbnail=null, hasThumbnail=true) {
     const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(messageColor)
@@ -54,16 +65,17 @@ async function sendMessage (message, title, description=null, thumbnail=null, ha
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendPlaylist (message, title, playlist) {
-    let description = ""
-    for (let i = 0; i < playlist.length; i++) {
-        const element = playlist[i]
-        description = description.concat(`${i + 1}. ${element.title}\n`)
-    }
+async function sendPlaylist (message, title, playlist, initialNumber= 1) {
     const embed = new EmbedBuilder().setTitle(title)
-                                    .setDescription(description)
                                     .setColor(messageColor)
                                     .setThumbnail(images[0])
+    let description = ''
+    for (let i = 0; i < playlist.length; i++) {
+        const element = playlist[i]
+        description = description.concat(`${initialNumber++}. ${element.title}\n`)
+    }
+    if(description)
+        embed.setDescription(description)
 
     await message.channel.send({ embeds: [embed] })
 }
@@ -101,6 +113,7 @@ const getRandomInteger = (min, max) => Math.floor(Math.random() * (max - min) ) 
 
 module.exports = {
     sendError,
+    sendWarning,
     sendMessage,
     sendPlaylist,
     sendHelp,
