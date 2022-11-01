@@ -55,7 +55,7 @@ async function sendMessage (message, title, description=null, thumbnail=null, ha
 }
 
 async function sendPlaylist (message, title, playlist) {
-    let description = null
+    let description = ""
     for (let i = 0; i < playlist.length; i++) {
         const element = playlist[i]
         description = description.concat(`${i + 1}. ${element.title}\n`)
