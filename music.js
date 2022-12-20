@@ -85,9 +85,10 @@ async function stop (message) {
     queues[message.guild.id] = null
 }
 
-async function skip(message, to) {
+async function skip(message, to, ignoreInVoiceChannel) {
     const id = message.guild.id
-    if (!await validateVoiceChannel(message) || (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id))) return
+    if (!ignoreInVoiceChannel && !await validateVoiceChannel(message)) return
+    if (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id)) return
     if (!await validateHasQueue(message)) return
 
     if(to) {
@@ -179,7 +180,7 @@ async function playAudio(message) {
         if (flags[id]?.loop)
             await playAudio(message)
         else 
-            await skip(message)
+            await skip(message, null, true)
     })
 }
 
