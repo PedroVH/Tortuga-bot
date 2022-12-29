@@ -6,6 +6,9 @@ WORKDIR /usr/src/app
 # Install app dependencies
 COPY package*.json ./
 
+RUN apt-get update && apt-get install -y \
+    ffmpeg
+
 RUN npm install -timeout=600000
 # If you are building your code for production
 RUN npm ci --only=production
