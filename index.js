@@ -1,7 +1,7 @@
 require('dotenv').config()
 const { Client, GatewayIntentBits } = require('discord.js');
 const { handleCommand, loadCommands } = require('./command-controller')
-const { handleMusic } = require('./music')
+const { handle } = require('./music')
 const client = new Client(
     {
         intents: [
@@ -23,7 +23,7 @@ client.on('messageCreate', async message => {
     let text = message.content.replace(/^\s+|\s+$|\s+(?=\s)/g, '')
     if (!text) return
     console.log(`[${message.guild.name}] ${message.author.username}: ${text}`)
-    text.startsWith(prefix) ? await handleCommand(message, text.toLowerCase().replace(prefix, '')) : await handleMusic(message, text)
+    text.startsWith(prefix) ? await handleCommand(message, text.toLowerCase().replace(prefix, '')) : await handle(message, text)
 })
 
 client.once('ready', () => {

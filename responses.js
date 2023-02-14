@@ -65,10 +65,26 @@ async function sendMessage (message, title, description=null, thumbnail=null, ha
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendPlaylist (message, title, playlist, initialNumber= 1) {
+async function sendVideo (message, video, added = true) {
+    let title = `🎶 [${video.duration}] ${video.title}`
+    if(added) title += ' adicionado na playlist'
+
+    let description = ''
+    if(video.channel) description += `${video.channel}`
+
+    const embed = new EmbedBuilder().setTitle(title)
+        .setColor(messageColor)
+
+    if(description) embed.setDescription(description)
+    embed.setThumbnail(video.thumbnail ? video.thumbnail : getRandomHappy())
+
+    await message.channel.send({ embeds: [embed] })
+}
+
+async function sendPlaylist (message, title, playlist, initialNumber= 1, thumbnail = images[0]) {
     const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(messageColor)
-                                    .setThumbnail(images[0])
+                                    .setThumbnail(thumbnail)
     let description = ''
     for (let i = 0; i < playlist.length; i++) {
         const element = playlist[i]
@@ -88,8 +104,11 @@ async function sendHelp (message) {
     'Você também pode **pesquisar** pela música!\n'+
     '_Ex: Never Gonna Give You Up_\n\n'+
     'Também é possível adicionar **playlists** do Youtube, através de um link ou de um vídeo da playlist.\n\n'+
-    '_Obs.: Os vídeos/playlists não podem ser privados ou ter restrição de idade._\n\n'+
-    '**Comandos:**\n'
+    'Algumas observações: \n' +
+        '\t• Os vídeos/playlists não podem ser privados ou ter restrição de idade;\n' +
+        '\t• Playlists não podem ser muito grandes, por conta de problemas técnicos;\n' +
+        '\t• Playlists não podem ser mix do youtube, pois essas são privadas;\n\n'+
+    '**Comandos:** _começe com \'.\' (ponto)_\n'
     const embed = new EmbedBuilder().setTitle(title)
 
     for (const key in commands) {
@@ -115,6 +134,7 @@ module.exports = {
     sendError,
     sendWarning,
     sendMessage,
+    sendVideo,
     sendPlaylist,
     sendHelp,
     getRandomUpset,

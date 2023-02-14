@@ -1,15 +1,12 @@
-const { sendError, sendMessage, sendPlaylist} = require('./responses')
+const { sendError, sendVideo, sendPlaylist} = require('./responses')
 const play = require('play-dl');
-const ytsearch = require('youtube-search-api')
-const { joinVoiceChannel, 
+const { joinVoiceChannel,
     getVoiceConnection, 
     VoiceConnectionStatus,
     entersState,
     createAudioPlayer,
     AudioPlayerStatus,
     createAudioResource } = require('@discordjs/voice')
-// TODO: Adicionar start e start (n).
-//       Substituir o ytsearch pelo play
 
 // Salva as playlists das guildas
 const queues = []
@@ -28,7 +25,7 @@ function makeAudioPlayer(connection, id) {
 }
 
 async function join(message) {
-    if (!await validateVoiceChannel(message)) return
+    if (!await isInVoiceChannel(message)) return
     const voiceChannel = message.member.voice.channel
     const connection = joinVoiceChannel({
         channelId: voiceChannel.id,
@@ -65,20 +62,20 @@ async function join(message) {
 }
 
 async function leave(message) {
-    if (!await validateVoiceChannel(message)) return
+    if (!await isInVoiceChannel(message)) return
     const connection = getVoiceConnection(message.guild.id)
     if (connection) connection.destroy()
 }
 
 async function pause(message) {
-    if (!await validateVoiceChannel(message)) return
+    if (!await isInVoiceChannel(message)) return
     let audioPlayer = guildAudioPlayer[message.guild.id]
     if (!audioPlayer) throw new Error('Não há um audio player para pausar/despausar.')
     isAudioPlayerPaused(message.guild.id) ? audioPlayer.unpause() : audioPlayer.pause()
 }
 
 async function stop (message) {
-    if (!await validateVoiceChannel(message)) return
+    if (!await isInVoiceChannel(message)) return
     let audioPlayer = guildAudioPlayer[message.guild.id]
     if (audioPlayer) audioPlayer.stop()
     guildAudioPlayer[message.guild.id] = null
@@ -87,7 +84,7 @@ async function stop (message) {
 
 async function skip(message, to, ignoreInVoiceChannel) {
     const id = message.guild.id
-    if (!ignoreInVoiceChannel && !await validateVoiceChannel(message)) return
+    if (!ignoreInVoiceChannel && !await isInVoiceChannel(message)) return
     if (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id)) return
     if (!await validateHasQueue(message)) return
 
@@ -103,7 +100,7 @@ async function skip(message, to, ignoreInVoiceChannel) {
 
 async function remove(message, index, count='1') {
     const id = message.guild.id
-    if (!await validateVoiceChannel(message)) return
+    if (!await isInVoiceChannel(message)) return
     if (!await validateHasQueue(message)) return
 
     if(queues[id].length === 0)
@@ -114,7 +111,7 @@ async function remove(message, index, count='1') {
 }
 
 async function loop(message) {
-    if (!await validateVoiceChannel(message)) return
+    if (!await isInVoiceChannel(message)) return
     if (!isAudioPlayerPlaying(message.guild.id)) {
         await sendError(message, undefined, "Não há uma música tocando agora.")
         return
@@ -122,23 +119,28 @@ async function loop(message) {
     toggleLoop(message.guild.id)
 }
 
-async function addToQueue(message, title, url, alert=true) {
+async function addToQueue(message, video, alert=true) {
     const id = message.guild.id
     if (!queues[id]) queues[id] = []
-    queues[id].push({ title: title, url: url })
-    if (queues[id][1] && alert) await sendMessage(message, `🎶 ${title} adicionado na playlist.`, undefined, null, false)
+    queues[id].push(video)
+
+    if (queues[id][1] && alert) await sendVideo(message, video)
 }
 
-async function start(message, url=undefined) {
+async function start(message, query) {
     const id = message.guild.id
     if (!queues[id]) queues[id] = []
-    if (!url) url = message.content
-    if (!validateYoutubeUrl(url)) {
-        url = await getUrlByKeyword(url)
-        if (!url) await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
-    }
-    const info = await play.video_basic_info(url)
-    queues[id][0] = { title: info.video_details.title, url: info.video_details.url }
+    if (!query) query = message.content
+
+    let video
+    let validation = validateYoutubeUrl(query)
+
+    if (validation === 'video')
+        video = (await play.video_basic_info(query)).video_details
+    else if (validation === false)
+        video = await getFirstSearchResult(message, query)
+
+    queues[id][0] = translateYTVideoObject(video)
     try {
         await playAudio(message)
     } 
@@ -161,16 +163,16 @@ async function playAudio(message) {
 
     // recupera o vídeo e reproduz
     if (!await validateHasQueue(message)) return
-    const url = queues[id][0]?.url
-    if (!url) return
+    const video = queues[id][0]
+    if (!video) return
 
-    const playStream = await play.stream(url).catch(async error => {
+    const playStream = await play.stream(video.url).catch(async error => {
         console.error(error)
         await skip(message)
     });
     player.play(createAudioResource(playStream.stream, { inputType: playStream.type }))
 
-    if (!flags[id]?.loop) await sendMessage(message, `🎶 ${queues[id][0]?.title}`, '', null, false)
+    if (!flags[id]?.loop) await sendVideo(message, video, false)
 
     player.on('error', error => {
         console.error(error)
@@ -184,24 +186,21 @@ async function playAudio(message) {
     })
 }
 
-async function handleMusic(message, text) {
-    if (!await validateVoiceChannel(message)) return
+async function handle(message, query) {
+    if (!await isInVoiceChannel(message)) return
     try {
-        let url = text
-        if (!validateYoutubeUrl(url)) {
-            if (url.includes('https://www.youtube.com/playlist?list=')) {
-                await handlePlaylist(message, url)
-                return
-            }
-            if (url.includes('&list=')) {
-                await handlePlaylist(message, url, true)
-                return
-            }
-            url = await getUrlByKeyword(text)
-            if (!url) await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
+        let validation = validateYoutubeUrl(query)
+        if (validation === 'playlist')
+            return await handlePlaylist(message, query)
+
+        let ytVideo
+        if (validation === 'video')
+            ytVideo = (await play.video_basic_info(query)).video_details
+        else {
+            ytVideo = await getFirstSearchResult(message, query)
         }
-        const info = await play.video_basic_info(url)
-        await addToQueue(message, info.video_details.title, info.video_details.url)
+
+        await addToQueue(message, translateYTVideoObject(ytVideo))
         const canPlayNow = !guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id)
         // Toca a música se já não tiver uma tocando
         if(canPlayNow) await playAudio(message)
@@ -211,42 +210,44 @@ async function handleMusic(message, text) {
     }
 }
 
-async function handlePlaylist(message, url, isVideoLink=false) {
-    let itens = []
+async function handlePlaylist(message, url) {
+    let allVideos = []
     let newVideos = []
     // No caso de ser o link de uma playlist
-    let playlistId = url.split('list=')[1].split('&index=')[0]
-    let playlist = await ytsearch.GetPlaylistData(playlistId)
-    if (playlist) itens = playlist.items
-    let afterVideoLink = false
+    let playlistIdAndIndex = url.split('list=')[1].split('&index=')
+
+    let playlist = await play.playlist_info(playlistIdAndIndex[0], {incomplete: true})
+    if (playlist)
+        allVideos = await playlist.all_videos()
+    else
+        return await sendError(message, "Não foi possível recuperar a playlist")
+
+    let toAdd = allVideos
+    let isVideoAndPlaylist = url.includes('watch?v=')
+
+    if(isVideoAndPlaylist) {
+        toAdd = allVideos.slice(playlistIdAndIndex[1] - 1)
+    }
     // adiciona os vídeos
-    let video;
-    for (let i = 0; i < itens.length; i++) {
-        const item = itens[i];
-        if (isVideoLink && !afterVideoLink) {
-            afterVideoLink = url.includes(item.id)
-            if (!afterVideoLink) continue
-        }
-        video = {
-            title: item.title,
-            url: getUrlById(item.id)
-        }
+    for (let i = 0; i < toAdd.length; i++) {
+        const video = translateYTVideoObject(toAdd[i]);
         newVideos.push(video)
-        await addToQueue(message, video.title, video.url, false)
+        await addToQueue(message, video, false)
     }
     // cria a mensagem
-    await sendPlaylist(message, 'Adicionando a playlist: ', newVideos)
+    await sendPlaylist(message, `Adicionando a playlist ${playlist.title}`, newVideos, playlist.thumbnail?.url)
     const canPlayNow = (!guildAudioPlayer[message.guild.id]) || isAudioPlayerIdle(message.guild.id)
     // se o bot estiver livre, toca a música
     if(canPlayNow) await playAudio(message) 
 }
 
-async function getUrlByKeyword(keyword) {
-    let result = await ytsearch.GetListByKeyword(keyword, false, 1)
-    if (result) return getUrlById(result.items[0]?.id)
+async function getFirstSearchResult(message, keyword) {
+    let result = await play.search(keyword)
+    if (result) return result.shift()
+    await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
 }
 
-async function validateVoiceChannel(message) {
+async function isInVoiceChannel(message) {
     if (!message.member.voice.channel) {
         await sendError(message, 'Você deve estar conectado em um canal de voz.', '', 'https://i.postimg.cc/CM9RFyjy/turt-phone.png')
         return false
@@ -263,7 +264,18 @@ async function validateHasQueue(message) {
 }
 
 function validateYoutubeUrl(url) {
-    return url.startsWith('https') && play.yt_validate(url) === 'video'
+    if(!url.startsWith('https')) return false
+    return play.yt_validate(url)
+}
+
+function translateYTVideoObject(video) {
+    return {
+        title: video.title,
+        url: video.url,
+        thumbnail: video.thumbnails?.shift().url,
+        channel: video.channel?.name,
+        duration: video.durationRaw
+    }
 }
 
 function toggleLoop(id) {
@@ -272,8 +284,6 @@ function toggleLoop(id) {
     if (!flags[id]) flags[id] = { loop: false }
     flags[id].loop = !flags[id].loop
 }
-
-const getUrlById = (id) =>'https://www.youtube.com/watch?v=' + id
 
 const isAudioPlayerIdle = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Idle
 const isAudioPlayerBuffering = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Buffering
@@ -290,5 +300,5 @@ module.exports = {
     queues,
     loop,
     start,
-    handleMusic,
+    handle,
 }
