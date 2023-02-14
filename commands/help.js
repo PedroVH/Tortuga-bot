@@ -5,7 +5,7 @@ module.exports = {
         name: 'help',
         desc: 'Descrição do funcionamento e comandos do Tortuga.'
     },
-    async execute(message, args) {
+    async execute(message) {
         await sendHelp(message)
     }
 }

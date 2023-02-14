@@ -5,7 +5,7 @@ module.exports = {
         name: 'stop',
         desc: 'Zera a playlist e para a música.'
     },
-    async execute(message, args) {
+    async execute(message) {
         await stop(message).then(message.react('⏹️'))
     }
 }

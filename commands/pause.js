@@ -5,7 +5,7 @@ module.exports = {
         name: 'p',
         desc: 'Pausa/despausa a reprodução da música.'
     },
-    async execute(message, args) {
+    async execute(message) {
         await pause(message).then(message.react('⏯️'))
     }
 }

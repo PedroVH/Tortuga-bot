@@ -5,7 +5,7 @@ module.exports = {
     },
     async execute(message, args) {
         let num = 1
-        if (args && args.length == 1 && !isNaN(args[0])) num = Number.parseInt(args[0])
+        if (args && args.length === 1 && !isNaN(args[0])) num = Number.parseInt(args[0])
         if (num >= 100) num = 99
         await message.channel.bulkDelete(++num, true)
     }

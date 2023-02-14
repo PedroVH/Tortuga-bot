@@ -5,7 +5,7 @@ module.exports = {
         name: 'ping',
         desc: 'Responde com Pong!'
     },
-	async execute(message, args) {
+	async execute(message) {
 		try {
 			const randomThumb = images[Math.floor(Math.random() * images.length)]
 			await sendMessage(message, "🏓 Pong!", "Eu estou online!", randomThumb)

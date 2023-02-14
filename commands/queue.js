@@ -6,7 +6,7 @@ module.exports = {
         name: 'queue',
         desc: 'Lista os vídeos da playlist atual.'
     },
-    async execute(message, args) {
+    async execute(message) {
         const queue = queues[message.guild.id]
         if (!queue) {
             await sendError(message, undefined, "A playlist está vazia.")
