@@ -1,4 +1,4 @@
-const { sendError, sendVideo, sendPlaylist} = require('./responses')
+const { sendError, sendVideoMessage, sendPlaylist} = require('./responses')
 const play = require('play-dl');
 const { joinVoiceChannel,
     getVoiceConnection, 
@@ -6,7 +6,9 @@ const { joinVoiceChannel,
     entersState,
     createAudioPlayer,
     AudioPlayerStatus,
-    createAudioResource } = require('@discordjs/voice')
+    createAudioResource,
+    NoSubscriberBehavior
+} = require('@discordjs/voice')
 
 // Salva as playlists das guildas
 const queues = []
@@ -17,9 +19,24 @@ const guildAudioPlayer = []
 // estrutura atual: { loop: boolean }
 const flags = []
 
-function makeAudioPlayer(connection, id) {
-    const player = createAudioPlayer()
+function makeAudioPlayer(message, connection, id) {
+    const player = createAudioPlayer({
+            behaviors: {
+                noSubscriber: NoSubscriberBehavior.Play
+            }
+        })
     connection.subscribe(player)
+        player.on('error', error => {
+        console.error(error)
+    })
+    // quando o player parar de streamar, atualiza a fila e executa este método novamente (exceção o loop)
+    player.on(AudioPlayerStatus.Idle, async () => {
+        if (flags[id]?.loop)
+            await playAudio(message)
+        else
+            await skip(message, null, true)
+    })
+
     guildAudioPlayer[id] = player
     return player
 }
@@ -32,6 +49,21 @@ async function join(message) {
         guildId: voiceChannel.guild.id,
         adapterCreator: voiceChannel.guild.voiceAdapterCreator,
     })
+
+    // corrige erro onde o stream acaba depois de mais ou menos um minuto --v--
+    const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
+        const newUdp = Reflect.get(newNetworkState, 'udp');
+        clearInterval(newUdp?.keepAliveInterval);
+    }
+
+    connection.on('stateChange', (oldState, newState) => {
+        const oldNetworking = Reflect.get(oldState, 'networking');
+        const newNetworking = Reflect.get(newState, 'networking');
+
+        oldNetworking?.off('stateChange', networkStateChangeHandler);
+        newNetworking?.on('stateChange', networkStateChangeHandler);
+    });
+    // -- ^ --
     
     connection.on(VoiceConnectionStatus.Ready, () => {
         console.log(`[${voiceChannel.guild.name}] Connected`)
@@ -124,7 +156,7 @@ async function addToQueue(message, video, alert=true) {
     if (!queues[id]) queues[id] = []
     queues[id].push(video)
 
-    if (queues[id][1] && alert) await sendVideo(message, video)
+    if (queues[id][1] && alert) await sendVideoMessage(message, video)
 }
 
 async function start(message, query) {
@@ -155,35 +187,27 @@ async function playAudio(message) {
     // garante connection
     let connection = getVoiceConnection(id)
     if (!connection) connection = await join(message)
-    if (!connection) return
+    if (!connection) return console.log(`[${message.guild.name}] Incapaz de criar conexão com o voice chat.`)
 
     // garante audioPlayer
-    let player = makeAudioPlayer(connection, id)
-    if (!player) return
+    let player = makeAudioPlayer(message, connection, id)
+    if (!player) return console.log(`[${message.guild.name}] Incapaz de criar audio player.`)
 
     // recupera o vídeo e reproduz
     if (!await validateHasQueue(message)) return
     const video = queues[id][0]
     if (!video) return
 
-    const playStream = await play.stream(video.url).catch(async error => {
+    const stream = await play.stream(video.url).catch(async error => {
         console.error(error)
         await skip(message)
     });
-    player.play(createAudioResource(playStream.stream, { inputType: playStream.type }))
 
-    if (!flags[id]?.loop) await sendVideo(message, video, false)
+    const resource = createAudioResource(stream.stream, { inputType: stream.type })
 
-    player.on('error', error => {
-        console.error(error)
-    })
-    // quando o player parar de streamar, atualiza a fila e executa este método novamente (exceção o loop)
-    player.on(AudioPlayerStatus.Idle, async () => {
-        if (flags[id]?.loop)
-            await playAudio(message)
-        else 
-            await skip(message, null, true)
-    })
+    player.play(resource)
+
+    if (!flags[id]?.loop) await sendVideoMessage(message, video, false)
 }
 
 async function handle(message, query) {
@@ -216,11 +240,17 @@ async function handlePlaylist(message, url) {
     // No caso de ser o link de uma playlist
     let playlistIdAndIndex = url.split('list=')[1].split('&index=')
 
-    let playlist = await play.playlist_info(playlistIdAndIndex[0], {incomplete: true})
+    let playlist = await play.playlist_info(playlistIdAndIndex[0], {incomplete: true}).catch(err => {
+        console.log(`[${message.guild.name}] Erro lendo playlist`)
+        sendError(message, "Erro lendo playlist!", err.message)
+
+        if(url.includes('watch'))
+            handle(message, url.split('&list=')[0])
+    })
     if (playlist)
         allVideos = await playlist.all_videos()
     else
-        return await sendError(message, "Não foi possível recuperar a playlist")
+        return
 
     let toAdd = allVideos
     let isVideoAndPlaylist = url.includes('watch?v=')

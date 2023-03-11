@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js')
 const { commands } = require('./commands')
 const messageColor = '#008000'
-const warningColor = '#DBF227'
+// const warningColor = '#DBF227'
 const errorColor = '#C70039'
 
 const images = [
@@ -45,16 +45,6 @@ async function sendError (message, title='Erro!', description=null, thumbnail=nu
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendWarning (message, title='Atenção!', description=null, thumbnail=null, hasThumbnail=true) {
-    const embed = new EmbedBuilder().setTitle(title)
-                                    .setColor(warningColor)
-
-    if(description) embed.setDescription(description)
-    if (hasThumbnail) embed.setThumbnail(thumbnail ? thumbnail : getRandomUpset())
-
-    await message.channel.send({ embeds: [embed] })
-}
-
 async function sendMessage (message, title, description=null, thumbnail=null, hasThumbnail=true) {
     const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(messageColor)
@@ -65,7 +55,7 @@ async function sendMessage (message, title, description=null, thumbnail=null, ha
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendVideo (message, video, added = true) {
+async function sendVideoMessage (message, video, added = true) {
     let title = `🎶 [${video.duration}] ${video.title}`
     if(added) title += ' adicionado na playlist'
 
@@ -132,9 +122,8 @@ const getRandomInteger = (min, max) => Math.floor(Math.random() * (max - min) ) 
 
 module.exports = {
     sendError,
-    sendWarning,
     sendMessage,
-    sendVideo,
+    sendVideoMessage,
     sendPlaylist,
     sendHelp,
     getRandomUpset,
