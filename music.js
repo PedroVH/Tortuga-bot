@@ -50,21 +50,6 @@ async function join(message) {
         adapterCreator: voiceChannel.guild.voiceAdapterCreator,
     })
 
-    // corrige erro onde o stream acaba depois de mais ou menos um minuto --v--
-    const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
-        const newUdp = Reflect.get(newNetworkState, 'udp');
-        clearInterval(newUdp?.keepAliveInterval);
-    }
-
-    connection.on('stateChange', (oldState, newState) => {
-        const oldNetworking = Reflect.get(oldState, 'networking');
-        const newNetworking = Reflect.get(newState, 'networking');
-
-        oldNetworking?.off('stateChange', networkStateChangeHandler);
-        newNetworking?.on('stateChange', networkStateChangeHandler);
-    });
-    // -- ^ --
-    
     connection.on(VoiceConnectionStatus.Ready, () => {
         console.log(`[${voiceChannel.guild.name}] Connected`)
     })
