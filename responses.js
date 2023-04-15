@@ -71,7 +71,7 @@ async function sendVideoMessage (message, video, added = true) {
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendPlaylist (message, title, playlist, initialNumber= 1, thumbnail = images[0]) {
+async function sendPlaylist (message, title, playlist,  initialNumber= 1, thumbnail = images[0]) {
     const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(messageColor)
                                     .setThumbnail(thumbnail)

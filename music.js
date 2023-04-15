@@ -206,7 +206,9 @@ async function handle(message, query) {
         if (validation === 'video')
             ytVideo = (await play.video_basic_info(query)).video_details
         else {
+            // É provavelmente == search
             ytVideo = await getFirstSearchResult(message, query)
+            if (!ytVideo) return
         }
 
         await addToQueue(message, translateYTVideoObject(ytVideo))
@@ -250,16 +252,30 @@ async function handlePlaylist(message, url) {
         await addToQueue(message, video, false)
     }
     // cria a mensagem
-    await sendPlaylist(message, `Adicionando a playlist ${playlist.title}`, newVideos, playlist.thumbnail?.url)
+    await sendPlaylist(message, `Adicionando a playlist ${playlist.title}`, newVideos, 1, playlist.thumbnail?.url)
     const canPlayNow = (!guildAudioPlayer[message.guild.id]) || isAudioPlayerIdle(message.guild.id)
     // se o bot estiver livre, toca a música
     if(canPlayNow) await playAudio(message) 
 }
 
 async function getFirstSearchResult(message, keyword) {
-    let result = await play.search(keyword)
-    if (result) return result.shift()
-    await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
+    let playlist = keyword.includes('playlist')
+    let options = {limit:1}
+    if (playlist)
+        options = {limit:1, source: { youtube: 'playlist' }}
+
+    let result = await play.search(keyword, options)
+
+    if(!result)
+        await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
+
+    let data = result.shift()
+    if (playlist)
+        await handlePlaylist(message, data.url)
+    else
+        return data
+
+    return null
 }
 
 async function isInVoiceChannel(message) {
@@ -284,6 +300,7 @@ function validateYoutubeUrl(url) {
 }
 
 function translateYTVideoObject(video) {
+    if (!video) console.log("Video está nulo!")
     return {
         title: video.title,
         url: video.url,
