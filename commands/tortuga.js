@@ -5,11 +5,11 @@ import {PermissionsBitField} from "discord.js";
 export const command = {
     data: {
         name: 'tortuga',
-        desc: 'Configura o tortuga para só ler mensagens deste canal.'
+        desc: 'Configura o tortuga para só ler mensagens do canal atual.'
     },
     async execute(message) {
         if(!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-            return await sendError(message, "Sem autorização!", "Somente o dono do servidor pode utilizar este comando.")
+            return await sendError(message, "Sem autorização!", "Somente usuários com a permissão \"Gerenciar Servidor\" podem utilizar este comando.")
         }
         await writeGuild(message.guild.id, {
             name: message.guild.name,

@@ -4,6 +4,7 @@ import {handle} from './music.js'
 import {readGuild} from './guilds-controller.js'
 
 import {config} from "dotenv";
+import {sendMessage} from "./responses.js";
 
 config()
 
@@ -27,7 +28,14 @@ client.on('messageCreate', async message => {
     if (message.author.bot || !message.content) return
 
     let guild = await readGuild(message.guildId)
-    if (!message.content.includes(".tortuga") && (!guild || guild.channelId !== message.channelId)) return
+
+    if(guild) {
+        if(guild.channelId !== message.channelId) return
+    } else if(!message.content.includes(".tortuga")) {
+        return await sendMessage(message, "Me configure!", "Escreva '.tortuga' em um canal para começar a usar o tortuga.\n" +
+            "Recomendo utilizar um canal dedicado para mim, pois vou tentar entender todas as mensagens enviadas nele!\n\n" +
+            "Utilize '.help' no canal escolhido para saber mais.")
+    }
 
     let text = message.content.replace(/^\s+|\s+$|\s+(?=\s)/g, '')
     if (!text) return
