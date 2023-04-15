@@ -1,6 +1,6 @@
-const { leave } = require('../music')
+import {leave} from "../music.js"
 
-module.exports = {
+export const command = {
     data: {
         name: 'leave',
         desc: 'O Tortuga se desconecta da chamada de voz.'

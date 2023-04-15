@@ -1,6 +1,6 @@
-const { sendHelp } = require('../responses')
+import { sendHelp } from '../responses.js'
 
-module.exports = {
+export const command = {
     data: {
         name: 'help',
         desc: 'Descrição do funcionamento e comandos do Tortuga.'

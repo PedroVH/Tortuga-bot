@@ -1,17 +1,18 @@
-const { sendError, sendVideoMessage, sendPlaylist} = require('./responses')
-const play = require('play-dl');
-const { joinVoiceChannel,
-    getVoiceConnection, 
-    VoiceConnectionStatus,
-    entersState,
-    createAudioPlayer,
+import { sendError, sendVideoMessage, sendPlaylist} from './responses.js'
+import play from "play-dl"
+
+import {
     AudioPlayerStatus,
-    createAudioResource,
-    NoSubscriberBehavior
-} = require('@discordjs/voice')
+    createAudioPlayer, createAudioResource,
+    entersState,
+    getVoiceConnection,
+    joinVoiceChannel, NoSubscriberBehavior,
+    VoiceConnectionStatus
+} from "@discordjs/voice"
+
 
 // Salva as playlists das guildas
-const queues = []
+export const queues = []
 // Guarda o player que está sendo utilizado em cada guilda. 
 // Deve ser usado somente para consultar, e operações como pausar/despausar.
 const guildAudioPlayer = []
@@ -41,7 +42,7 @@ function makeAudioPlayer(message, connection, id) {
     return player
 }
 
-async function join(message) {
+export async function join(message) {
     if (!await isInVoiceChannel(message)) return
     const voiceChannel = message.member.voice.channel
     const connection = joinVoiceChannel({
@@ -78,28 +79,28 @@ async function join(message) {
     return connection
 }
 
-async function leave(message) {
+export async function leave(message) {
     if (!await isInVoiceChannel(message)) return
     const connection = getVoiceConnection(message.guild.id)
     if (connection) connection.destroy()
 }
 
-async function pause(message) {
+export async function pause(message) {
     if (!await isInVoiceChannel(message)) return
     let audioPlayer = guildAudioPlayer[message.guild.id]
     if (!audioPlayer) throw new Error('Não há um audio player para pausar/despausar.')
     isAudioPlayerPaused(message.guild.id) ? audioPlayer.unpause() : audioPlayer.pause()
 }
 
-async function stop (message) {
+export async function stop (message) {
     if (!await isInVoiceChannel(message)) return
     let audioPlayer = guildAudioPlayer[message.guild.id]
     if (audioPlayer) audioPlayer.stop()
     guildAudioPlayer[message.guild.id] = null
-    queues[message.guild.id] = null
+    queues[message.guild.id] = []
 }
 
-async function skip(message, to, ignoreInVoiceChannel) {
+export async function skip(message, to, ignoreInVoiceChannel) {
     const id = message.guild.id
     if (!ignoreInVoiceChannel && !await isInVoiceChannel(message)) return
     if (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id)) return
@@ -115,7 +116,7 @@ async function skip(message, to, ignoreInVoiceChannel) {
     await playAudio(message)
 }
 
-async function remove(message, index, count='1') {
+export async function remove(message, index, count='1') {
     const id = message.guild.id
     if (!await isInVoiceChannel(message)) return
     if (!await validateHasQueue(message)) return
@@ -127,7 +128,7 @@ async function remove(message, index, count='1') {
     await sendPlaylist(message, `❎ Músicas removidas: `, removed, ++index)
 }
 
-async function loop(message) {
+export async function loop(message) {
     if (!await isInVoiceChannel(message)) return
     if (!isAudioPlayerPlaying(message.guild.id)) {
         await sendError(message, undefined, "Não há uma música tocando agora.")
@@ -144,7 +145,7 @@ async function addToQueue(message, video, alert=true) {
     if (queues[id][1] && alert) await sendVideoMessage(message, video)
 }
 
-async function start(message, query) {
+export async function start(message, query) {
     const id = message.guild.id
     if (!queues[id]) queues[id] = []
     if (!query) query = message.content
@@ -186,7 +187,7 @@ async function playAudio(message) {
     const stream = await play.stream(video.url).catch(async error => {
         console.error(error)
         await skip(message)
-    });
+    })
 
     const resource = createAudioResource(stream.stream, { inputType: stream.type })
 
@@ -195,7 +196,7 @@ async function playAudio(message) {
     if (!flags[id]?.loop) await sendVideoMessage(message, video, false)
 }
 
-async function handle(message, query) {
+export async function handle(message, query) {
     if (!await isInVoiceChannel(message)) return
     try {
         let validation = validateYoutubeUrl(query)
@@ -247,7 +248,7 @@ async function handlePlaylist(message, url) {
     }
     // adiciona os vídeos
     for (let i = 0; i < toAdd.length; i++) {
-        const video = translateYTVideoObject(toAdd[i]);
+        const video = translateYTVideoObject(toAdd[i])
         newVideos.push(video)
         await addToQueue(message, video, false)
     }
@@ -321,16 +322,3 @@ const isAudioPlayerIdle = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].s
 const isAudioPlayerBuffering = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Buffering
 const isAudioPlayerPaused = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Paused
 const isAudioPlayerPlaying = (id) => guildAudioPlayer[id] && guildAudioPlayer[id].state.status === AudioPlayerStatus.Playing
-
-module.exports = {
-    join,
-    leave,
-    skip,
-    remove,
-    pause,
-    stop,
-    queues,
-    loop,
-    start,
-    handle,
-}

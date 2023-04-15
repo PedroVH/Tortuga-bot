@@ -1,6 +1,6 @@
-const { sendMessage, images } = require('../responses')
+import {images, sendMessage} from "../responses.js"
 
-module.exports = {
+export const command = {
 	data: {
         name: 'ping',
         desc: 'Responde com Pong!'

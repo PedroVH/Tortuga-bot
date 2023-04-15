@@ -1,6 +1,6 @@
-const { skip } = require('../music')
+import {skip} from "../music.js"
 
-module.exports = {
+export const command = {
     data: {
         name: 's',
         desc: 'Pula para o próximo item da playlist.'

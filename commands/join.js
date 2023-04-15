@@ -1,6 +1,6 @@
-const { join } = require('../music')
+import {join} from "../music.js"
 
-module.exports = {
+export const command = {
     data: {
         name: 'join',
         desc: 'O Tortuga se conecta na chamada de voz.'

@@ -1,6 +1,6 @@
-const { pause } = require('../music')
+import {pause} from "../music.js"
 
-module.exports = {
+export const command = {
     data: {
         name: 'p',
         desc: 'Pausa/despausa a reprodução da música.'

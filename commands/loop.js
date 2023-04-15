@@ -1,6 +1,6 @@
-const { loop } = require('../music')
+import {loop} from "../music.js"
 
-module.exports = {
+export const command = {
     data: {
         name: 'loop',
         desc: 'Bota a música atual em loop.'

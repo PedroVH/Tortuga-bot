@@ -1,6 +1,6 @@
-const { start } = require('../music')
+import {start} from "../music.js"
 
-module.exports = {
+export const command = {
     data: {
         name: 'start',
         desc: 'Substitui a música atual pelo argumento desse comando.'

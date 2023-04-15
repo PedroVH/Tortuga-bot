@@ -1,6 +1,6 @@
-const { stop } = require('../music')
+import {stop} from "../music.js"
 
-module.exports = {
+export const command = {
     data: {
         name: 'stop',
         desc: 'Zera a playlist e para a música.'

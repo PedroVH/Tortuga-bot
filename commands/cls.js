@@ -1,4 +1,4 @@
-module.exports = {
+export const command = {
     data: {
         name: 'cls',
         desc: 'Exclui a última mensagem. Seguido de um número *n*, deleta as últimas *n* mensagens do canal.'
@@ -9,4 +9,4 @@ module.exports = {
         if (num >= 100) num = 99
         await message.channel.bulkDelete(++num, true)
     }
-}
+};

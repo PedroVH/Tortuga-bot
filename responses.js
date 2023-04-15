@@ -1,10 +1,11 @@
-const { EmbedBuilder } = require('discord.js')
-const { commands } = require('./commands')
+import {commands} from "./commands.js"
+import { EmbedBuilder } from 'discord.js'
+
 const messageColor = '#008000'
 // const warningColor = '#DBF227'
 const errorColor = '#C70039'
 
-const images = [
+export const images = [
     'https://i.postimg.cc/CM9RFyjy/turt-phone.png',         // profile          // 0
     'https://i.postimg.cc/QMDNFhMP/turt-curse.png',         // upset            // 1
     'https://i.postimg.cc/Dys80CgS/turt-sad.png',           // upset            // 2
@@ -35,7 +36,7 @@ const images = [
     'https://i.postimg.cc/28PSf4NC/turt-cold.png',                              // 27
 ]
 
-async function sendError (message, title='Erro!', description=null, thumbnail=null, hasThumbnail=true) {
+export async function sendError (message, title='Erro!', description=null, thumbnail=null, hasThumbnail=true) {
     const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(errorColor)
 
@@ -45,7 +46,7 @@ async function sendError (message, title='Erro!', description=null, thumbnail=nu
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendMessage (message, title, description=null, thumbnail=null, hasThumbnail=true) {
+export async function sendMessage (message, title, description=null, thumbnail=null, hasThumbnail=true) {
     const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(messageColor)
 
@@ -55,7 +56,7 @@ async function sendMessage (message, title, description=null, thumbnail=null, ha
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendVideoMessage (message, video, added = true) {
+export async function sendVideoMessage (message, video, added = true) {
     let title = `🎶 [${video.duration}] ${video.title}`
     if(added) title += ' adicionado na playlist'
 
@@ -71,7 +72,7 @@ async function sendVideoMessage (message, video, added = true) {
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendPlaylist (message, title, playlist,  initialNumber= 1, thumbnail = images[0]) {
+export async function sendPlaylist (message, title, playlist,  initialNumber= 1, thumbnail = images[0]) {
     const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(messageColor)
                                     .setThumbnail(thumbnail)
@@ -86,7 +87,7 @@ async function sendPlaylist (message, title, playlist,  initialNumber= 1, thumbn
     await message.channel.send({ embeds: [embed] })
 }
 
-async function sendHelp (message) {
+export async function sendHelp (message) {
     let title = 'Help!'
     let description = 
     'Para tocar uma música, simplesmente cole o **link** do Youtube aqui.\n'+
@@ -103,13 +104,13 @@ async function sendHelp (message) {
 
     for (const key in commands) {
         if (Object.hasOwnProperty.call(commands, key)) {
-            const element = commands[key];
+            const element = commands[key]
             embed.addFields({ name: element.data.name, value: element.data.desc })
         }
     }
     embed.setDescription(description)
          .setColor(messageColor)
-         .setThumbnail(getRandomHappy());
+         .setThumbnail(getRandomHappy())
 
     await message.channel.send({ embeds: [embed] })
 }
@@ -119,16 +120,3 @@ const getRandomRomantic = () => images[getRandomInteger(6, 13)]
 const getRandomHorny = () => images[getRandomInteger(14, 15)]
 const getRandomHappy = () => images[getRandomInteger(16, 26)]
 const getRandomInteger = (min, max) => Math.floor(Math.random() * (max - min) ) + min
-
-module.exports = {
-    sendError,
-    sendMessage,
-    sendVideoMessage,
-    sendPlaylist,
-    sendHelp,
-    getRandomUpset,
-    getRandomRomantic,
-    getRandomHorny,
-    getRandomHappy,
-    images
-}
