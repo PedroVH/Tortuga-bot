@@ -57,7 +57,7 @@ export async function sendMessage (message, title, description=null, thumbnail=n
 }
 
 export async function sendVideoMessage (message, video, added = true) {
-    let title = `🎶 [${video.duration}] ${video.title}`
+    let title = `🎶 ${video.duration ? `[${video.duration}]` : ''} ${video.title}`
     if(added) title += ' adicionado na playlist'
 
     let description = ''

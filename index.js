@@ -5,6 +5,7 @@ import {readGuild} from './guilds-controller.js'
 
 import {config} from "dotenv";
 import {sendMessage} from "./responses.js";
+import play from "play-dl";
 
 config()
 
@@ -21,6 +22,14 @@ const client = new Client(
 
 const prefix = "."
 const token = process.env.DISCORD_TOKEN
+
+play.getFreeClientID().then((clientID) => {
+    play.setToken({
+        soundcloud : {
+            client_id : clientID
+        }
+    })
+})
 
 loadCommands().then(() => console.log("All commands loaded!"))
 

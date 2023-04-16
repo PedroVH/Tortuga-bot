@@ -1,14 +1,19 @@
-import { sendError, sendVideoMessage, sendPlaylist} from './responses.js'
+import {sendError, sendPlaylist, sendVideoMessage} from './responses.js'
 import play from "play-dl"
 
 import {
     AudioPlayerStatus,
-    createAudioPlayer, createAudioResource,
+    createAudioPlayer,
+    createAudioResource,
     entersState,
     getVoiceConnection,
-    joinVoiceChannel, NoSubscriberBehavior,
+    joinVoiceChannel,
+    NoSubscriberBehavior,
     VoiceConnectionStatus
 } from "@discordjs/voice"
+import {getFirstYTSearchResult, handleYTPlaylist, handleYTTrack} from "./youtube.js";
+import {handleSOPlaylist, handleSOTrack} from "./soundcloud.js";
+import {handleSPPlaylist, handleSPTrack} from "./spotify.js";
 
 
 // Salva as playlists das guildas
@@ -54,6 +59,21 @@ export async function join(message) {
     connection.on(VoiceConnectionStatus.Ready, () => {
         console.log(`[${voiceChannel.guild.name}] Connected`)
     })
+
+    // workaround
+    const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
+        const newUdp = Reflect.get(newNetworkState, 'udp');
+        clearInterval(newUdp?.keepAliveInterval);
+    }
+
+    connection.on('stateChange', (oldState, newState) => {
+        const oldNetworking = Reflect.get(oldState, 'networking');
+        const newNetworking = Reflect.get(newState, 'networking');
+
+        oldNetworking?.off('stateChange', networkStateChangeHandler);
+        newNetworking?.on('stateChange', networkStateChangeHandler);
+    });
+    // workaround
 
     connection.on(VoiceConnectionStatus.Disconnected, async () => {
         try {
@@ -137,7 +157,7 @@ export async function loop(message) {
     toggleLoop(message.guild.id)
 }
 
-async function addToQueue(message, video, alert=true) {
+export async function addToQueue(message, video, alert=true) {
     const id = message.guild.id
     if (!queues[id]) queues[id] = []
     queues[id].push(video)
@@ -150,15 +170,7 @@ export async function start(message, query) {
     if (!queues[id]) queues[id] = []
     if (!query) query = message.content
 
-    let video
-    let validation = validateYoutubeUrl(query)
-
-    if (validation === 'video')
-        video = (await play.video_basic_info(query)).video_details
-    else if (validation === false)
-        video = await getFirstSearchResult(message, query)
-
-    queues[id][0] = translateYTVideoObject(video)
+    queues[id][0] = await handle(message, query, false)// video object
     try {
         await playAudio(message)
     } 
@@ -184,7 +196,9 @@ async function playAudio(message) {
     const video = queues[id][0]
     if (!video) return
 
-    const stream = await play.stream(video.url).catch(async error => {
+    const stream = await play.stream(video.url, {
+        quality: 1
+    }).catch(async error => {
         console.error(error)
         await skip(message)
     })
@@ -196,24 +210,16 @@ async function playAudio(message) {
     if (!flags[id]?.loop) await sendVideoMessage(message, video, false)
 }
 
-export async function handle(message, query) {
+export async function handle(message, query, play=true) {
     if (!await isInVoiceChannel(message)) return
     try {
-        let validation = validateYoutubeUrl(query)
-        if (validation === 'playlist')
-            return await handlePlaylist(message, query)
+        let result = await translateQuery(message, query)
+        if(Array.isArray(result)) {
+            let metadata = result['metadata']
+            await handlePlaylist(message, result, metadata.title, metadata.thumbnail)
+        } else await addToQueue(message, result)
 
-        let ytVideo
-        if (validation === 'video')
-            ytVideo = (await play.video_basic_info(query)).video_details
-        else {
-            // É provavelmente == search
-            ytVideo = await getFirstSearchResult(message, query)
-            if (!ytVideo) return
-        }
-
-        await addToQueue(message, translateYTVideoObject(ytVideo))
-        const canPlayNow = !guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id)
+        const canPlayNow = play && (!guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id))
         // Toca a música se já não tiver uma tocando
         if(canPlayNow) await playAudio(message)
     } catch (error) {
@@ -222,61 +228,35 @@ export async function handle(message, query) {
     }
 }
 
-async function handlePlaylist(message, url) {
-    let allVideos = []
-    let newVideos = []
-    // No caso de ser o link de uma playlist
-    let playlistIdAndIndex = url.split('list=')[1].split('&index=')
 
-    let playlist = await play.playlist_info(playlistIdAndIndex[0], {incomplete: true}).catch(err => {
-        console.log(`[${message.guild.name}] Erro lendo playlist`)
-        sendError(message, "Erro lendo playlist!", err.message)
+async function translateQuery(message, query) {
+    let validation = await play.validate(query)
+    switch (validation) {
+        case 'yt_playlist': return await handleYTPlaylist(message, query)
+        case 'yt_video': return await handleYTTrack(message, query)
 
-        if(url.includes('watch'))
-            handle(message, url.split('&list=')[0])
-    })
-    if (playlist)
-        allVideos = await playlist.all_videos()
-    else
-        return
+        case 'search': return await getFirstYTSearchResult(message, query)
 
-    let toAdd = allVideos
-    let isVideoAndPlaylist = url.includes('watch?v=')
+        case 'so_track': return await handleSOTrack(message, query)
+        case 'so_playlist': return await handleSOPlaylist(message, query)
 
-    if(isVideoAndPlaylist) {
-        toAdd = allVideos.slice(playlistIdAndIndex[1] - 1)
+        case 'sp_track': return await handleSPTrack(message, query)
+        case 'sp_playlist': return await handleSPPlaylist(message, query)
+
+        case false: console.log(`validation is 'false' for query: '${query}'`); break
+        default: {
+            console.log(`Type ${validation} is not supported for query '${query}'`)
+            return await sendError(message, "Não suportado!", "Eu ainda não tenho suporte para atender a sua requisição.")
+        }
     }
-    // adiciona os vídeos
-    for (let i = 0; i < toAdd.length; i++) {
-        const video = translateYTVideoObject(toAdd[i])
-        newVideos.push(video)
-        await addToQueue(message, video, false)
-    }
-    // cria a mensagem
-    await sendPlaylist(message, `Adicionando a playlist ${playlist.title}`, newVideos, 1, playlist.thumbnail?.url)
-    const canPlayNow = (!guildAudioPlayer[message.guild.id]) || isAudioPlayerIdle(message.guild.id)
-    // se o bot estiver livre, toca a música
-    if(canPlayNow) await playAudio(message) 
 }
 
-async function getFirstSearchResult(message, keyword) {
-    let playlist = keyword.includes('playlist')
-    let options = {limit:1}
-    if (playlist)
-        options = {limit:1, source: { youtube: 'playlist' }}
-
-    let result = await play.search(keyword, options)
-
-    if(!result)
-        await sendError(message, 'Não foi possível encontrar este vídeo.', 'Tente pesquisar de outra forma, ou utilize o link do vídeo.', 'https://i.postimg.cc/CKM1vwV8/turt-think.png')
-
-    let data = result.shift()
-    if (playlist)
-        await handlePlaylist(message, data.url)
-    else
-        return data
-
-    return null
+async function handlePlaylist(message, videoList, title, thumbnail) {
+    // adiciona na queue
+    for (const video of videoList)
+        await addToQueue(message, video, false)
+    // cria a mensagem
+    await sendPlaylist(message, `Adicionando a playlist ${title}`, videoList, 1, thumbnail)
 }
 
 async function isInVoiceChannel(message) {
@@ -293,22 +273,6 @@ async function validateHasQueue(message) {
         return false
     }
     return true
-}
-
-function validateYoutubeUrl(url) {
-    if(!url.startsWith('https')) return false
-    return play.yt_validate(url)
-}
-
-function translateYTVideoObject(video) {
-    if (!video) console.log("Video está nulo!")
-    return {
-        title: video.title,
-        url: video.url,
-        thumbnail: video.thumbnails?.shift().url,
-        channel: video.channel?.name,
-        duration: video.durationRaw
-    }
 }
 
 function toggleLoop(id) {
