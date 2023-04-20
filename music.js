@@ -100,7 +100,7 @@ export async function join(message) {
 }
 
 export async function leave(message) {
-    if (!await isInVoiceChannel(message)) return
+    await stop(message)
     const connection = getVoiceConnection(message.guild.id)
     if (connection) connection.destroy()
 }
@@ -112,7 +112,7 @@ export async function pause(message) {
     isAudioPlayerPaused(message.guild.id) ? audioPlayer.unpause() : audioPlayer.pause()
 }
 
-export async function stop (message) {
+export async function stop(message) {
     if (!await isInVoiceChannel(message)) return
     let audioPlayer = guildAudioPlayer[message.guild.id]
     if (audioPlayer) audioPlayer.stop()
@@ -124,14 +124,11 @@ export async function skip(message, to, ignoreInVoiceChannel) {
     const id = message.guild.id
     if (!ignoreInVoiceChannel && !await isInVoiceChannel(message)) return
     if (!isAudioPlayerIdle(id) && isAudioPlayerBuffering(id)) return
-    if (!await validateHasQueue(message)) return
+    if (!queues[id]) return
 
-    if(to) {
-        queues[id].splice(0, to - 1)
-    }
-    else {
-        queues[id].shift()
-    }
+    if(to) queues[id].splice(0, to - 1)
+    else queues[id].shift()
+
     if (flags[id]?.loop) toggleLoop(id)
     await playAudio(message)
 }
@@ -139,7 +136,7 @@ export async function skip(message, to, ignoreInVoiceChannel) {
 export async function remove(message, index, count='1') {
     const id = message.guild.id
     if (!await isInVoiceChannel(message)) return
-    if (!await validateHasQueue(message)) return
+    if (!queues[id]) return await sendError(message, "Ainda não foi criada uma playlist.")
 
     if(queues[id].length === 0)
         return await sendError(message, "A playlist está vazia!")
@@ -192,9 +189,8 @@ async function playAudio(message) {
     if (!player) return console.log(`[${message.guild.name}] Incapaz de criar audio player.`)
 
     // recupera o vídeo e reproduz
-    if (!await validateHasQueue(message)) return
+    if (!queues[id]) return console.log(`[${message.guild.name}] Ainda não foi criada uma playlist.`)
     const video = queues[id][0]
-    if (!video) return
 
     const stream = await play.stream(video.url, {
         quality: 1
@@ -262,14 +258,6 @@ async function handlePlaylist(message, videoList, title, thumbnail) {
 async function isInVoiceChannel(message) {
     if (!message.member.voice.channel) {
         await sendError(message, 'Você deve estar conectado em um canal de voz.', '', 'https://i.postimg.cc/CM9RFyjy/turt-phone.png')
-        return false
-    }
-    return true
-}
-
-async function validateHasQueue(message) {
-    if (!queues[message.guild.id]) {
-        await sendError(message, "Ainda não foi criada uma playlist.")
         return false
     }
     return true

@@ -15,5 +15,7 @@ RUN npm ci --only=production
 
 # Bundle app source
 COPY . .
+# The tokens setup for play-dl
+COPY ./.data /usr/src/app/.data
 
 CMD [ "node", "index.js" ]
