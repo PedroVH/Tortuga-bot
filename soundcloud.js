@@ -1,4 +1,4 @@
-import play from "play-dl";
+import play from 'play-dl'
 
 export async function handleSOTrack(message, query) {
     let track = await play.soundcloud(query)
@@ -11,7 +11,7 @@ export async function handleSOPlaylist(message, query) {
     let playlist = await play.soundcloud(query)
     let allTracks = await playlist.all_tracks()
 
-    // adiciona metadata
+    // adds metadata
     newTracks['metadata'] = {
         title: playlist.name,
         thumbnail: allTracks[0].thumbnail
@@ -25,7 +25,7 @@ export async function handleSOPlaylist(message, query) {
 }
 
 export function translateSOTrackObject(track) {
-    if (!track) console.log("Track está nula!")
+    if (!track) console.log('Track está nula!')
     return {
         title: track.name,
         url: track.url,

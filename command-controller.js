@@ -22,6 +22,9 @@ export async function handleCommand(message, text) {
     const command = commands[name.toLowerCase()]
 	if (!command) return
     try {
+        if(command.data.requiresVoiceChannel && !message.member.voice.channel)
+            return await sendError(message, 'Você deve estar conectado em um canal de voz.', '', 'https://i.postimg.cc/CM9RFyjy/turt-phone.png')
+
         await command.execute(message, args)
     } catch (error) {
         console.error(error)

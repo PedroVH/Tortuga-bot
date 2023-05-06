@@ -3,9 +3,9 @@ import {handleCommand, loadCommands} from './command-controller.js'
 import {handle} from './music.js'
 import {readGuild} from './guilds-controller.js'
 
-import {config} from "dotenv";
-import {sendMessage} from "./responses.js";
-import play from "play-dl";
+import {config} from 'dotenv'
+import {sendMessage} from './responses.js'
+import play from 'play-dl'
 
 config()
 
@@ -31,7 +31,7 @@ play.getFreeClientID().then((clientID) => {
     })
 })
 
-loadCommands().then(() => console.log("All commands loaded!"))
+loadCommands().then(() => console.log('All commands loaded!'))
 
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.content) return
@@ -40,9 +40,9 @@ client.on('messageCreate', async message => {
 
     if(guild) {
         if(guild.channelId !== message.channelId) return
-    } else if(!message.content.includes(".tortuga")) {
-        return await sendMessage(message, "Me configure!", "Escreva '.tortuga' em um canal para começar a usar o tortuga.\n" +
-            "Recomendo utilizar um canal dedicado para mim, pois vou tentar entender todas as mensagens enviadas nele!\n\n" +
+    } else if(!message.content.includes('.tortuga')) {
+        return await sendMessage(message, 'Me configure!', "Escreva '.tortuga' em um canal para começar a usar o tortuga.\n" +
+            'Recomendo utilizar um canal dedicado para mim, pois vou tentar entender todas as mensagens enviadas nele!\n\n' +
             "Utilize '.help' no canal escolhido para saber mais.")
     }
 

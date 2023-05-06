@@ -1,4 +1,4 @@
-import {commands} from "./commands.js"
+import {commands} from './commands.js'
 import { EmbedBuilder } from 'discord.js'
 
 const messageColor = '#008000'
@@ -36,6 +36,18 @@ export const images = [
     'https://i.postimg.cc/28PSf4NC/turt-cold.png',                              // 27
 ]
 
+export async function sendErrorTryAgainLater (message, error) {
+    const embed = new EmbedBuilder()
+        .setTitle('Não foi possível reproduzir, tente novamente mais tarde.')
+        .setColor(errorColor)
+        .setThumbnail(getRandomUpset())
+
+    if(error)
+        embed.setDescription(error)
+
+    await message.channel.send({ embeds: [embed] })
+}
+
 export async function sendError (message, title='Erro!', description=null, thumbnail=null, hasThumbnail=true) {
     const embed = new EmbedBuilder().setTitle(title)
                                     .setColor(errorColor)
@@ -56,7 +68,7 @@ export async function sendMessage (message, title, description=null, thumbnail=n
     await message.channel.send({ embeds: [embed] })
 }
 
-export async function sendVideoMessage (message, video, added = true) {
+export async function sendTrackMessage (message, video, added = true) {
     let title = `🎶 ${video.duration ? `[${video.duration}]` : ''} ${video.title}`
     if(added) title += ' adicionado na playlist'
 
@@ -82,7 +94,7 @@ export async function sendPlaylist (message, title, playlist,  initialNumber= 1,
         description = description.concat(`${initialNumber++}. ${element.title}\n`)
     }
     if(description)
-        embed.setDescription(description)
+        embed.setDescription(description.length > 4096 ? description.substring(0, 4093)+'...' : description)
 
     await message.channel.send({ embeds: [embed] })
 }
@@ -105,7 +117,8 @@ export async function sendHelp (message) {
     for (const key in commands) {
         if (Object.hasOwnProperty.call(commands, key)) {
             const element = commands[key]
-            embed.addFields({ name: element.data.name, value: element.data.desc })
+            if(!element.data.hidden)
+                embed.addFields({ name: element.data.name, value: element.data.desc })
         }
     }
     embed.setDescription(description)

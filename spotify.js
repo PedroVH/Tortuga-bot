@@ -1,9 +1,9 @@
-import play from "play-dl";
-import {sendError} from "./responses.js";
+import play from 'play-dl'
+import {sendError} from './responses.js'
 
 export async function handleSPTrack(message, query) {
-    return await sendError(message, "Spotify indisponível!", "Infelizmente não consigo reproduzir musicas do spotify no momento." +
-        "\nIssue no github: https://github.com/play-dl/play-dl/issues/349")
+    return await sendError(message, 'Spotify indisponível!', 'Infelizmente não consigo reproduzir musicas do spotify no momento.' +
+        '\nIssue no github: https://github.com/play-dl/play-dl/issues/349')
 
     if(play.is_expired()) await play.refreshToken()
     let track = await play.spotify(query)
@@ -12,8 +12,8 @@ export async function handleSPTrack(message, query) {
 }
 
 export async function handleSPPlaylist(message, query) {
-    return await sendError(message, "Spotify indisponível!", "Infelizmente não consigo reproduzir musicas do spotify no momento." +
-        "\nIssue no github: https://github.com/play-dl/play-dl/issues/349")
+    return await sendError(message, 'Spotify indisponível!', 'Infelizmente não consigo reproduzir musicas do spotify no momento.' +
+        '\nIssue no github: https://github.com/play-dl/play-dl/issues/349')
 
     if(play.is_expired()) await play.refreshToken()
     let newTracks = []
@@ -21,7 +21,7 @@ export async function handleSPPlaylist(message, query) {
     let playlist = await play.spotify(query)
     let allTracks = await playlist.all_tracks()
 
-    // adiciona metadata
+    // adds metadata
     newTracks['metadata'] = {
         title: playlist.name,
         thumbnail: playlist.thumbnail?.url
@@ -35,7 +35,7 @@ export async function handleSPPlaylist(message, query) {
 }
 
 export function translateSPTrackObject(track) {
-    if (!track) console.log("Track está nula!")
+    if (!track) console.log('Track está nula!')
     return {
         title: track.name,
         url: track.url,

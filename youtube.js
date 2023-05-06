@@ -1,6 +1,6 @@
-import play from "play-dl";
-import {sendError} from "./responses.js";
-import {handle} from "./music.js";
+import play from 'play-dl'
+import {sendError} from './responses.js'
+import {handle} from './music.js'
 
 export async function handleYTTrack(message, query) {
     let YTVideo = (await play.video_basic_info(query)).video_details
@@ -10,7 +10,7 @@ export async function handleYTTrack(message, query) {
 export async function handleYTPlaylist(message, query) {
     let allVideos = []
     let newVideos = []
-    // No caso de ser o link de uma playlist
+    // In case it's a playlist link
     let playlistIdAndIndex = query.split('list=')[1].split('&index=')
 
     let playlist = await play.playlist_info(playlistIdAndIndex[0], {incomplete: true}).catch(err => {
@@ -32,13 +32,13 @@ export async function handleYTPlaylist(message, query) {
         toAdd = allVideos.slice(playlistIdAndIndex[1] - 1)
     }
 
-    // adiciona metadata
+    // adds metadata
     newVideos['metadata'] = {
         title: playlist.title,
-        thumbnail: playlist.thumbnail
+        thumbnail: playlist.thumbnail?.url
     }
 
-    // adiciona os vídeos
+    // adds tracks
     for (const video of toAdd) {
         newVideos.push(translateYTVideoObject(video))
     }
@@ -64,12 +64,12 @@ export async function getFirstYTSearchResult(message, query) {
 }
 
 export function translateYTVideoObject(video) {
-    if (!video) console.log("Video está nulo!")
+    if (!video) console.log('Video está nulo!')
     return {
         title: video.title,
         url: video.url,
         thumbnail: video.thumbnails?.shift().url,
         channel: video.channel?.name,
-        duration: video.durationRaw
+        duration: video.live ? 'Live' : video.durationRaw
     }
 }

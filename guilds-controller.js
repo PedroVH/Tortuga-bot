@@ -2,8 +2,8 @@ import {join} from 'node:path'
 import {Low} from 'lowdb'
 import {JSONFile} from 'lowdb/node'
 
-import {config} from "dotenv";
-import fs from "fs";
+import {config} from 'dotenv'
+import fs from 'fs'
 
 config()
 
@@ -17,11 +17,10 @@ if (!fs.existsSync(PATH)) {
 
 const file = join(PATH, GUILDS_FILE)
 const adapter = new JSONFile(file)
-const guildsDb = new Low(adapter)
+const guildsDb = new Low(adapter, { guilds: '[]' })
 
 export async function readGuild(id) {
     await guildsDb.read()
-    guildsDb.data ||= { guilds: '[]' }
 
     let map = new Map(JSON.parse(guildsDb.data.guilds))
     return map.get(id)

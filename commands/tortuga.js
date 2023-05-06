@@ -1,6 +1,6 @@
-import {sendError, sendMessage} from "../responses.js";
-import {writeGuild} from "../guilds-controller.js";
-import {PermissionsBitField} from "discord.js";
+import {sendError, sendMessage} from '../responses.js'
+import {writeGuild} from '../guilds-controller.js'
+import {PermissionsBitField} from 'discord.js'
 
 export const command = {
     data: {
@@ -9,12 +9,12 @@ export const command = {
     },
     async execute(message) {
         if(!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-            return await sendError(message, "Sem autorização!", "Somente usuários com a permissão \"Gerenciar Servidor\" podem utilizar este comando.")
+            return await sendError(message, 'Sem autorização!', 'Somente usuários com a permissão \"Gerenciar Servidor\" podem utilizar este comando.')
         }
         await writeGuild(message.guild.id, {
             name: message.guild.name,
             channelId: message.channelId
         })
-        await sendMessage(message, "Feito!", `Eu só lerei mensagens no canal ${message.channel.name} a partir de agora.`)
+        await sendMessage(message, 'Feito!', `Eu só lerei mensagens no canal ${message.channel.name} a partir de agora.`)
     },
 }
