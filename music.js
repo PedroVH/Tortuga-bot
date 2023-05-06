@@ -241,7 +241,10 @@ async function translateQuery(message, query) {
         case 'sp_track': return await handleSPTrack(message, query)
         case 'sp_playlist': return await handleSPPlaylist(message, query)
 
-        case false: console.log(`[${message.guild.name}] [DEBUG] validation is 'false' for query: '${query}'`); break
+        case false: {
+            console.log(`[${message.guild.name}] [DEBUG] validation is 'false' for query: '${query}'`);
+            return await sendError(message, 'Não suportado!', 'Eu não consigo entender esse link.')
+        }
         default: {
             console.log(`[${message.guild.name}] [DEBUG] Type ${validation} is not supported for query '${query}'`)
             return await sendError(message, 'Não suportado!', 'Eu ainda não tenho suporte para atender a sua requisição.')
