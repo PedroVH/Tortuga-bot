@@ -5,13 +5,13 @@ import {sendError} from './responses.js'
 import {commands} from './commands.js'
 
 export async function loadCommands() {
-    log.log('Loading commands...')
+    log.info('Loading commands...')
     const files = fs.readdirSync('./commands').filter(file => file.endsWith('.js'))
 
     for (const file of files) {
         let command = (await import(`./commands/${file}`)).command
         commands[command.data.name] = command
-        log.log(`loaded ${command.data.name}`)
+        log.info(`loaded ${command.data.name}`)
     }
 }
 

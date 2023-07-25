@@ -32,7 +32,7 @@ play.getFreeClientID().then((clientID) => {
     })
 })
 
-loadCommands().then(() => log.log('All commands loaded!'))
+loadCommands().then(() => log.info('All commands loaded!'))
 
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.content) return
@@ -49,11 +49,11 @@ client.on('messageCreate', async message => {
 
     let text = message.content.replace(/^\s+|\s+$|\s+(?=\s)/g, '')
     if (!text) return
-    log.info(message, `${message.author.username}: ${text}`)
+    log.info(`${message.author.username}: ${text}`, message)
     text.startsWith(prefix) ? await handleCommand(message, text.replace(prefix, '')) : await handle(message, text)
 })
 
 client.once('ready', () => {
-	log.log('Bot ready!')
+    log.info('Bot ready!')
 })
 client.login(token)

@@ -38,7 +38,7 @@ function makeAudioPlayer(message, connection, id) {
     })
     // when the player stops streaming
     player.on(AudioPlayerStatus.Idle, async () => {
-        log.debug(message, 'Status changed to Idle')
+        log.debug('Status changed to Idle', message)
         if (flags[id]?.loop)
             await playAudio(message)
         else
@@ -59,11 +59,11 @@ export async function join(message) {
     })
 
     connection.on(VoiceConnectionStatus.Ready, async () => {
-        log.info(message, 'Connected')
+        log.info('Connected', message)
     })
 
     connection.on(VoiceConnectionStatus.Disconnected, async () => {
-        log.debug(message, 'Status changed to Disconnected')
+        log.debug('Status changed to Disconnected', message)
         try {
             await Promise.race([
                 entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
@@ -77,7 +77,7 @@ export async function join(message) {
     })
 
     connection.on(VoiceConnectionStatus.Destroyed, async () => {
-        log.info(message, 'Disconnected')
+        log.info('Disconnected', message)
         guildAudioPlayer[message.guild.id] = null
         queues[message.guild.id] = null
     })
@@ -89,7 +89,7 @@ export async function join(message) {
 
 export async function leave(message) {
     if(!isBotInVoiceChannel(message.guild.id)) return
-    log.debug(message, 'Leaving')
+    log.debug('Leaving', message)
     await stop(message)
     const connection = getVoiceConnection(message.guild.id)
     if (connection) connection.destroy()
@@ -119,7 +119,7 @@ export async function skip(message, to) {
 
     if (isQueueEmpty(id)) return await leave(message)
 
-    log.debug(message, 'Skipping...')
+    log.debug('Skipping...', message)
 
     if (flags[id]?.loop) toggleLoop(id)
     await playAudio(message)
@@ -182,11 +182,11 @@ async function playAudio(message) {
     // assert connection
     let connection = getVoiceConnection(id)
     if (!connection) connection = await join(message)
-    if (!connection) return log.debug(message, 'Unable to connect to voice channel.')
+    if (!connection) return log.debug('Unable to connect to voice channel.', )
 
     // assert audioPlayer
     let player = makeAudioPlayer(message, connection, id)
-    if (!player) return log.debug(message, 'Unable to create AudioPlayer.')
+    if (!player) return log.debug('Unable to create AudioPlayer.', message)
 
     // get track
     if (isQueueEmpty(id)) return
@@ -204,7 +204,7 @@ async function playAudio(message) {
     const resource = createAudioResource(stream.stream, { inputType: stream.type, silencePaddingFrames: 10 })
 
     player.play(resource)
-    log.info(message, `Playing '${track.title}'`)
+    log.info(`Playing '${track.title}'`, message)
 
     if (!flags[id]?.loop) await sendTrackMessage(message, track, false)
 }
@@ -243,11 +243,11 @@ async function translateQuery(message, query) {
         case 'sp_playlist': return await handleSPPlaylist(message, query)
 
         case false: {
-            log.debug(message, `validation is 'false' for query: '${query}'`);
+            log.debug(`validation is 'false' for query: '${query}'`, message)
             return await sendError(message, 'Não suportado!', 'Eu não consigo entender esse link.')
         }
         default: {
-            log.debug(message, `Type ${validation} is not supported for query '${query}'`)
+            log.debug(`Type ${validation} is not supported for query '${query}'`, message)
             return await sendError(message, 'Não suportado!', 'Eu ainda não tenho suporte para atender a sua requisição.')
         }
     }

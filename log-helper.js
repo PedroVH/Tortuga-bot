@@ -1,19 +1,16 @@
-const now = () => {
-    return new Date().toISOString().slice(0, 23).replace('T', ' ')
+import logger from 'nodejslogger'
+
+if(!process.env.TORTUGA_BOT_LOG_FILE) process.env.TORTUGA_BOT_LOG_FILE = 'server.log'
+logger.init({'file':process.env.TORTUGA_BOT_LOG_FILE, 'mode':'DIE'})
+
+export function info(content, message) {
+    logger.info(`${message ? `[${message.guild.name}]` : ''} ${content}`)
 }
 
-export function log(content) {
-    console.log(`${now()} | ${content}`)
-}
-
-export function info(message, content) {
-    log(`[INFO]  [${message.guild.name}] ${content}`)
-}
-
-export function debug(message, content) {
-    log(`[DEBUG] [${message.guild.name}] ${content}`)
+export function debug(content, message) {
+    logger.debug(`${message ? `[${message.guild.name}]` : ''} ${content}`)
 }
 
 export function error(err, message, resume) {
-    console.error(`${now()} - [ERROR] ${message ? `[${message.guild.name}] ` : ""}${resume ? `${resume}: ` : ""}${err ? err : ""}`)
+    logger.error(`${message ? `[${message.guild.name}] ` : ''}${resume ? `${resume}: ` : ''}${err ? err : ''}`)
 }
