@@ -1,3 +1,4 @@
+import * as log from './log-helper.js'
 import {sendError, sendErrorTryAgainLater, sendPlaylist, sendTrackMessage} from './responses.js'
 import play from 'play-dl'
 
@@ -32,12 +33,12 @@ function makeAudioPlayer(message, connection, id) {
             }
         })
     connection.subscribe(player)
-        player.on('error', error => {
-        console.error(error)
+        player.on('error', e => {
+        log.error(e, message)
     })
     // when the player stops streaming
     player.on(AudioPlayerStatus.Idle, async () => {
-        console.log(`[${message.guild.name}] [DEBUG] Status changed to Idle`)
+        log.debug(message, 'Status changed to Idle')
         if (flags[id]?.loop)
             await playAudio(message)
         else
@@ -58,11 +59,11 @@ export async function join(message) {
     })
 
     connection.on(VoiceConnectionStatus.Ready, async () => {
-        console.log(`[${voiceChannel.guild.name}] Connected`)
+        log.info(message, 'Connected')
     })
 
     connection.on(VoiceConnectionStatus.Disconnected, async () => {
-        console.log(`[${message.guild.name}] [DEBUG] Status changed to Disconnected`)
+        log.debug(message, 'Status changed to Disconnected')
         try {
             await Promise.race([
                 entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
@@ -76,7 +77,7 @@ export async function join(message) {
     })
 
     connection.on(VoiceConnectionStatus.Destroyed, async () => {
-        console.log(`[${voiceChannel.guild.name}] Disconnected`)
+        log.info(message, 'Disconnected')
         guildAudioPlayer[message.guild.id] = null
         queues[message.guild.id] = null
     })
@@ -88,7 +89,7 @@ export async function join(message) {
 
 export async function leave(message) {
     if(!isBotInVoiceChannel(message.guild.id)) return
-    console.log(`[${message.guild.name}] [DEBUG] Leaving`)
+    log.debug(message, 'Leaving')
     await stop(message)
     const connection = getVoiceConnection(message.guild.id)
     if (connection) connection.destroy()
@@ -118,7 +119,7 @@ export async function skip(message, to) {
 
     if (isQueueEmpty(id)) return await leave(message)
 
-    console.log(`[${message.guild.name}] [DEBUG] skipping...`)
+    log.debug(message, 'Skipping...')
 
     if (flags[id]?.loop) toggleLoop(id)
     await playAudio(message)
@@ -171,7 +172,7 @@ export async function start(message, query) {
         queues[id][0] = result
 
     await playAudio(message).catch(async e => {
-        console.error(`[${message.guild.name}] [DEBUG] ${e.message}`)
+        log.error(e, message)
         await sendErrorTryAgainLater(message, e.message)
     })
 }
@@ -181,11 +182,11 @@ async function playAudio(message) {
     // assert connection
     let connection = getVoiceConnection(id)
     if (!connection) connection = await join(message)
-    if (!connection) return console.log(`[${message.guild.name}] [DEBUG] Unable to connect to voice channel.`)
+    if (!connection) return log.debug(message, 'Unable to connect to voice channel.')
 
     // assert audioPlayer
     let player = makeAudioPlayer(message, connection, id)
-    if (!player) return console.log(`[${message.guild.name}] [DEBUG] Unable to create AudioPlayer.`)
+    if (!player) return log.debug(message, 'Unable to create AudioPlayer.')
 
     // get track
     if (isQueueEmpty(id)) return
@@ -196,14 +197,14 @@ async function playAudio(message) {
         if(!track.url) new Error('Track url is undefined!')
         stream = await play.stream(track.url)
     } catch (e) {
-        console.error(`[${message.guild.name}] [DEBUG] Error creating Stream: ${e}`)
+        log.error(e, message,'Error creating Stream')
         await sendErrorTryAgainLater(message, e.message)
         return await skip(message)
     }
     const resource = createAudioResource(stream.stream, { inputType: stream.type, silencePaddingFrames: 10 })
 
     player.play(resource)
-    console.log(`[${message.guild.name}] [DEBUG] playing '${track.title}'`)
+    log.info(message, `Playing '${track.title}'`)
 
     if (!flags[id]?.loop) await sendTrackMessage(message, track, false)
 }
@@ -220,9 +221,9 @@ export async function handle(message, query, play=true) {
         const canPlayNow = play && (!guildAudioPlayer[message.guild.id] || isAudioPlayerIdle(message.guild.id))
         // Plays track if not playing already
         if(canPlayNow) await playAudio(message)
-    } catch (error) {
-        console.error(error)
-        await sendErrorTryAgainLater(message, error.message)
+    } catch (e) {
+        log.error(e, message)
+        await sendErrorTryAgainLater(message, e.message)
     }
 }
 
@@ -242,11 +243,11 @@ async function translateQuery(message, query) {
         case 'sp_playlist': return await handleSPPlaylist(message, query)
 
         case false: {
-            console.log(`[${message.guild.name}] [DEBUG] validation is 'false' for query: '${query}'`);
+            log.debug(message, `validation is 'false' for query: '${query}'`);
             return await sendError(message, 'Não suportado!', 'Eu não consigo entender esse link.')
         }
         default: {
-            console.log(`[${message.guild.name}] [DEBUG] Type ${validation} is not supported for query '${query}'`)
+            log.debug(message, `Type ${validation} is not supported for query '${query}'`)
             return await sendError(message, 'Não suportado!', 'Eu ainda não tenho suporte para atender a sua requisição.')
         }
     }

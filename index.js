@@ -1,3 +1,4 @@
+import * as log from './log-helper.js'
 import {Client, GatewayIntentBits} from 'discord.js'
 import {handleCommand, loadCommands} from './command-controller.js'
 import {handle} from './music.js'
@@ -31,7 +32,7 @@ play.getFreeClientID().then((clientID) => {
     })
 })
 
-loadCommands().then(() => console.log('All commands loaded!'))
+loadCommands().then(() => log.log('All commands loaded!'))
 
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.content) return
@@ -48,11 +49,11 @@ client.on('messageCreate', async message => {
 
     let text = message.content.replace(/^\s+|\s+$|\s+(?=\s)/g, '')
     if (!text) return
-    console.log(`[${message.guild.name}] ${message.author.username}: ${text}`)
+    log.info(message, `${message.author.username}: ${text}`)
     text.startsWith(prefix) ? await handleCommand(message, text.replace(prefix, '')) : await handle(message, text)
 })
 
 client.once('ready', () => {
-	console.log('\nBot on!\n')
+	log.log('Bot ready!')
 })
 client.login(token)

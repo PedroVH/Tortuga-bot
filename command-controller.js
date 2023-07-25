@@ -1,16 +1,17 @@
 import fs from 'fs'
+import * as log from './log-helper.js'
 
 import {sendError} from './responses.js'
 import {commands} from './commands.js'
 
 export async function loadCommands() {
-    console.log('Loading commands...')
+    log.log('Loading commands...')
     const files = fs.readdirSync('./commands').filter(file => file.endsWith('.js'))
 
     for (const file of files) {
         let command = (await import(`./commands/${file}`)).command
         commands[command.data.name] = command
-        console.log(`loaded ${command.data.name}`)
+        log.log(`loaded ${command.data.name}`)
     }
 }
 
@@ -26,8 +27,8 @@ export async function handleCommand(message, text) {
             return await sendError(message, 'Você deve estar conectado em um canal de voz.', '', 'https://i.postimg.cc/CM9RFyjy/turt-phone.png')
 
         await command.execute(message, args)
-    } catch (error) {
-        console.error(error)
+    } catch (e) {
+        log.error(e, message)
         await sendError(message, undefined, 'Houve um erro ao executar este comando.')
     }
 }
